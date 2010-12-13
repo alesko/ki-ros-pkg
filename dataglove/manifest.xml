@@ -1,0 +1,14 @@
+<package>
+  <description brief="dataglove">
+
+     dataglove
+
+  </description>
+  <author>Alexander Skoglund</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/dataglove</url>
+
+</package>
+
+
