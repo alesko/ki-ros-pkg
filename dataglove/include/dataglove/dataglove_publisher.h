@@ -48,7 +48,6 @@
 //messages
 #include <sensor_msgs/JointState.h>
 #include <boost/smart_ptr.hpp>
-//#include "cyberglove/xml_calibration_parser.h"
 
 #include "fifthDT_glove.h" // Fifth Dimension glove
 
@@ -57,7 +56,7 @@
 
 using namespace ros;
 
-//namespace cyberglove_publisher{
+
 namespace dataglove_publisher{
 
 class DataglovePublisher
@@ -71,9 +70,8 @@ class DataglovePublisher
 
   int GloveInit(std::string path_to_glove);
 
-  //  Publisher cyberglove_pub;
   Publisher dataglove_pub;
-  //void initialize_calibration(std::string path_to_calibration);
+
   void publish();
   bool isPublishing();
   void setPublishing(bool value);
@@ -88,7 +86,6 @@ class DataglovePublisher
   /////////////////
 
   ros::Time last_time;
-  //ros::Duration dt;
   
   //ros node handle
   NodeHandle node, n_tilde;
@@ -96,10 +93,6 @@ class DataglovePublisher
   std::string path_to_glove;
   bool publishing;
 
-  ///the calibration parser
-  //xml_calibration_parser::XmlCalibrationParser calibration_parser;
-
-  //Publisher cyberglove_raw_pub;
   Publisher dataglove_raw_pub;
 
   sensor_msgs::JointState jointstate_msg;
@@ -120,4 +113,4 @@ class DataglovePublisher
 }; // end class DataglovePublisher
 
 } // end namespace
-#endif 	    /* !CYBERGLOVE_PUBLISHER_H_ */
+#endif 	    /* !DATAGLOVE_PUBLISHER_H_ */

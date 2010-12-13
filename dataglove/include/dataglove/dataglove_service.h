@@ -44,40 +44,31 @@
 
 #include <ros/ros.h>
 #include <vector>
-//#include "cyberglove_publisher.h"
 #include "dataglove_publisher.h"
-//#include "cyberglove/Start.h"
 #include "dataglove/Start.h"
-//#include "dataglove/Calibration.h"
 #include <boost/smart_ptr.hpp>
 
 //messages
 
 using namespace ros;
 
-//namespace cyberglove_service{
 namespace dataglove_service{
 
-  //class CybergloveService
+
 class DatagloveService
 {
  public:
   /// Constructor
-  //CybergloveService(boost::shared_ptr<cyberglove_publisher::CyberglovePublisher> publish);
-  //CybergloveService(boost::shared_ptr<dataglove_publisher::CyberglovePublisher> publish);
   DatagloveService(boost::shared_ptr<dataglove_publisher::DataglovePublisher> publish);
-    //CybergloveService();
-    //bool start(cyberglove::Start::Request &req, cyberglove::Start::Response &res);
-    bool start(dataglove::Start::Request &req, dataglove::Start::Response &res);
-    //bool calibration(cyberglove::Calibration::Request &req, cyberglove::Calibration::Response &res);
+  bool start(dataglove::Start::Request &req, dataglove::Start::Response &res);
+  
  private:
     
   NodeHandle node;
-  //boost::shared_ptr<cyberglove_publisher::CyberglovePublisher> pub;
   boost::shared_ptr<dataglove_publisher::DataglovePublisher> pub;
   ros::ServiceServer service_start;
-  //ros::ServiceServer service_calibration;
-};
+  
+}; 
 
-}
+} // End namespace
 #endif

@@ -47,9 +47,6 @@
 #include <string>
 #include <sstream>
 
-//#include "cyberglove/serial_glove.h"
-//#include "cyberglove/cyberglove_publisher.h"
-//#include "cyberglove/dataglove_publisher.h"
 #include "dataglove/dataglove_publisher.h"
 
 // Globals
@@ -60,13 +57,10 @@ short unsigned int GLOBAL_RAW_[18];
 ros::Time callbacktime;
 
 using namespace ros;
-//using namespace xml_calibration_parser;
 
-//namespace cyberglove_publisher{
 namespace dataglove_publisher{
 
   // Not a GloveNode member
-  // static void GloveNode::GloveCallback(void* param)
   static void GloveCallback(void* param)
   {
     ros::Time oldtime;
@@ -75,23 +69,12 @@ namespace dataglove_publisher{
     DataglovePublisher* MySelf = (DataglovePublisher*)param;
   
     oldtime = callbacktime;
-    // Store old valuse for computing the velocity
     fifth_mutex_.lock();
-    /*for(int i=0;i<GLOVE_SIZE;i++){
-      GLOBAL_RAW_OLD_[i] = GLOBAL_RAW_[i];
-      GLOBAL_SCALED_OLD_[i] = GLOBAL_SCALED_[i];
-    }*/
     // Retrive data and put into global variables
     callbacktime = ros::Time::now();
-    //dt = callbacktime - oldtime;    
     fdGetSensorRawAll(MySelf->pGloveA,GLOBAL_RAW_);
     fdGetSensorScaledAll(MySelf->pGloveA, GLOBAL_SCALED_);
-    /*for(int i=0;i<GLOVE_SIZE;i++){
-      RAW_VEL[i] = (short unsigned int)((double)(GLOBAL_RAW_[i] - GLOBAL_RAW_OLD_[i]) / ((double) dt.toSec()));
-      SCALED_VEL[i] = (float)((GLOBAL_SCALED_[i] - GLOBAL_SCALED_OLD_[i]) / (double) dt.toSec());
-      }*/
     fifth_mutex_.unlock();
-    //ROS_INFO("Old %.10lf, new %.10lf dt %.10lf %.10lf", GLOBAL_SCALED_OLD_[0],GLOBAL_SCALED_[0], (double) dt.toSec(), SCALED_VEL[0]);
   }
 
   /////////////////////////////////
@@ -132,42 +115,15 @@ namespace dataglove_publisher{
 	n_tilde.searchParam("cyberglove_prefix", searched_param);
 	n_tilde.param(searched_param, prefix, std::string());
 	std::string full_topic = prefix + "/calibrated/joint_states";
-	//cyberglove_pub = n_tilde.advertise<sensor_msgs::JointState>(full_topic, 2);
 	dataglove_pub = n_tilde.advertise<sensor_msgs::JointState>(full_topic, 2);
 
 	//publishes raw JointState messages
 	n_tilde.searchParam("cyberglove_prefix", searched_param);
 	n_tilde.param(searched_param, prefix, std::string());
 	full_topic = prefix + "/raw/joint_states";
-	//cyberglove_raw_pub = n_tilde.advertise<sensor_msgs::JointState>(full_topic, 2);
 	dataglove_raw_pub = n_tilde.advertise<sensor_msgs::JointState>(full_topic, 2);
       }
 
-    //initialises joint names (the order is important)
-    /*jointstate_msg.name.push_back("G_ThumbRotate");
-    jointstate_msg.name.push_back("G_ThumbMPJ");
-    jointstate_msg.name.push_back("G_ThumbIJ");
-    jointstate_msg.name.push_back("G_ThumbAb");
-    jointstate_msg.name.push_back("G_IndexMPJ");
-    jointstate_msg.name.push_back("G_IndexPIJ");
-    jointstate_msg.name.push_back("G_IndexDIJ");
-    jointstate_msg.name.push_back("G_MiddleMPJ");
-    jointstate_msg.name.push_back("G_MiddlePIJ");
-    jointstate_msg.name.push_back("G_MiddleDIJ");
-    jointstate_msg.name.push_back("G_MiddleIndexAb");
-    jointstate_msg.name.push_back("G_RingMPJ");
-    jointstate_msg.name.push_back("G_RingPIJ");
-    jointstate_msg.name.push_back("G_RingDIJ");
-    jointstate_msg.name.push_back("G_RingMiddleAb");
-    jointstate_msg.name.push_back("G_PinkieMPJ");
-    jointstate_msg.name.push_back("G_PinkiePIJ");
-    jointstate_msg.name.push_back("G_PinkieDIJ");
-    jointstate_msg.name.push_back("G_PinkieRingAb");
-    jointstate_msg.name.push_back("G_PalmArch");
-    jointstate_msg.name.push_back("G_WristPitch");
-    jointstate_msg.name.push_back("G_WristYaw");
-
-    jointstate_raw_msg.name = jointstate_msg.name;*/
 
     // Initialized the joint names
     jointstate_msg.name.push_back("FD_THUMBNEAR");	  
@@ -191,7 +147,6 @@ namespace dataglove_publisher{
 	  
     jointstate_raw_msg.name = jointstate_msg.name;    
 
-    //last_time = 0;
     for(int i=0;i<GLOVE_SIZE;i++){
       raw_old[i] = 0;
       scaled_old[i] = 0.0;
@@ -262,10 +217,6 @@ namespace dataglove_publisher{
 	glovePositions = NULL;
 	}*/
   }
-  /*void DataglovePublisher::initialize_calibration(std::string path_to_calibration)
-  {
-    calibration_parser = XmlCalibrationParser(path_to_calibration);
-    }*/
 
   bool DataglovePublisher::isPublishing()
   {
@@ -339,15 +290,6 @@ namespace dataglove_publisher{
     jointstate_raw_msg.position.clear();
     jointstate_raw_msg.velocity.clear();
 
-    //fill the joint_state msg with the glove data
-    /*for(unsigned int i=0; i<GLOVE_SIZE; ++i)
-      {
-	jointstate_raw_msg.position.push_back(glovePositions[i]);
-	add_jointstate(glovePositions[i], jointstate_msg.name[i]);
-	}*/
-
- 
-    //double secs =ros::Time::now().toSec();
     ros::Duration dt = callbacktime - last_time;
 
     for(int i=0;i<GLOVE_SIZE;i++){
@@ -370,8 +312,6 @@ namespace dataglove_publisher{
  
     
     //publish the msgs 
-    //cyberglove_pub.publish(jointstate_msg);
-    //cyberglove_raw_pub.publish(jointstate_raw_msg);
     dataglove_pub.publish(jointstate_msg);
     dataglove_raw_pub.publish(jointstate_raw_msg);
 

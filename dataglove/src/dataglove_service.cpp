@@ -44,48 +44,31 @@
 #include <string>
 #include <sstream>
 
-//#include "cyberglove/serial_glove.h"
-//#include "cyberglove/cyberglove_publisher.h"
-//#include "cyberglove/cyberglove_service.h"
-//#include "cyberglove/dataglove_publisher.h"
-//#include "cyberglove/dataglove_service.h"
 #include "dataglove/dataglove_publisher.h"
 #include "dataglove/dataglove_service.h"
 
 using namespace ros;
 
-//namespace cyberglove_service{
 namespace dataglove_service{
 
-  //CybergloveService::CybergloveService(boost::shared_ptr<cyberglove_publisher::CyberglovePublisher> publish)
-  //CybergloveService::CybergloveService(boost::shared_ptr<dataglove_publisher::CyberglovePublisher> publish)
-DatagloveService::DatagloveService(boost::shared_ptr<dataglove_publisher::DataglovePublisher> publish)                  
- :  node("~"), pub(publish)
-{
-  //service_start = node.advertiseService("start",&CybergloveService::start,this);
-  service_start = node.advertiseService("start",&DatagloveService::start,this);
-  //service_calibration = node.advertiseService("calibration", &CybergloveService::calibration, this);
-  ROS_INFO("Listening for service");
-}
+  DatagloveService::DatagloveService(boost::shared_ptr<dataglove_publisher::DataglovePublisher> publish)                  
+    :  node("~"), pub(publish)
+  {
+    service_start = node.advertiseService("start",&DatagloveService::start,this);
+    ROS_INFO("Listening for service");
+  }
 
-  //bool CybergloveService::start(cyberglove::Start::Request &req, cyberglove::Start::Response &res){
-  //bool CybergloveService::start(dataglove::Start::Request &req, dataglove::Start::Response &res){
-bool DatagloveService::start(dataglove::Start::Request &req, dataglove::Start::Response &res){
+  bool DatagloveService::start(dataglove::Start::Request &req, dataglove::Start::Response &res){
     if(req.start){
-        ROS_INFO("Glove is now publishing");
-        this->pub->setPublishing(true);    
+      ROS_INFO("Glove is now publishing");
+      this->pub->setPublishing(true);    
     }
     else{
-        ROS_INFO("Glove has stopped publishing");
-        this->pub->setPublishing(false);
+      ROS_INFO("Glove has stopped publishing");
+      this->pub->setPublishing(false);
     }
     //this->pub->cyberglove_pub.shutdown();
     return true;
-}
-  /*bool CybergloveService::calibration(cyberglove::Calibration::Request &req, cyberglove::Calibration::Response &res){
-    this->pub->setPublishing(false);
-    this->pub->initialize_calibration(req.path);
-    this->pub->setPublishing(true); 
-    return true;
-}*/
-}
+  }
+
+} // End namespace
