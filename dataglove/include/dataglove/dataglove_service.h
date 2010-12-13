@@ -48,8 +48,7 @@
 #include "dataglove_publisher.h"
 //#include "cyberglove/Start.h"
 #include "dataglove/Start.h"
-//#include "cyberglove/Calibration.h"
-#include "dataglove/Calibration.h"
+//#include "dataglove/Calibration.h"
 #include <boost/smart_ptr.hpp>
 
 //messages
