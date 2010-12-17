@@ -50,11 +50,12 @@
 #include "dataglove/dataglove_publisher.h"
 
 // Globals
-boost::mutex fifth_mutex_ ;
-float GLOBAL_SCALED_[18];
-short unsigned int GLOBAL_RAW_[18];
-
-ros::Time callbacktime;
+boost::mutex g_fifth_mutex ;
+//float GLOBAL_SCALED_[18];
+//short unsigned int GLOBAL_RAW_[18];
+float g_scaled[18];
+short unsigned int g_raw[18];
+ros::Time g_callbacktime;
 
 using namespace ros;
 
@@ -68,13 +69,19 @@ namespace dataglove_publisher{
     //GloveNode* MySelf = (GloveNode*)param;
     DataglovePublisher* MySelf = (DataglovePublisher*)param;
   
-    oldtime = callbacktime;
-    fifth_mutex_.lock();
+    //oldtime = callbacktime;
+    oldtime = g_callbacktime;
+    //fifth_mutex_.lock();
+    g_fifth_mutex.lock();
     // Retrive data and put into global variables
-    callbacktime = ros::Time::now();
-    fdGetSensorRawAll(MySelf->pGloveA,GLOBAL_RAW_);
-    fdGetSensorScaledAll(MySelf->pGloveA, GLOBAL_SCALED_);
-    fifth_mutex_.unlock();
+    //callbacktime = ros::Time::now();
+    g_callbacktime = ros::Time::now();
+    //fdGetSensorRawAll(MySelf->pGloveA,GLOBAL_RAW_);
+    //fdGetSensorScaledAll(MySelf->pGloveA, GLOBAL_SCALED_);
+    fdGetSensorRawAll(MySelf->pGloveA, g_raw);
+    fdGetSensorScaledAll(MySelf->pGloveA, g_scaled);    
+    //fifth_mutex_.unlock();
+    g_fifth_mutex.unlock();
   }
 
   /////////////////////////////////
@@ -194,6 +201,7 @@ namespace dataglove_publisher{
     fdGetGloveInfo( pGloveA, buf );
     ROS_INFO("Glove info: %s\n", (char*)buf );
 
+    // Set up callback function
     fdSetCallback(pGloveA, (void*)&(GloveCallback), this);
 
     //fifthDT_pub = n.advertise<std_msgs::String>("pub_fifthDT", 10);
@@ -270,9 +278,11 @@ namespace dataglove_publisher{
     try
       {
 	//glovePositions = glove_get_values(); // Rewrite to 5DT
-	fifth_mutex_.unlock();
+	//fifth_mutex_.unlock();
+	g_fifth_mutex.unlock(); // Unlock before going to sleep
 	publish_rate.sleep();
-	fifth_mutex_.lock();
+	g_fifth_mutex.lock();
+	//fifth_mutex_.lock();
       }
     catch(int e)
       {
@@ -290,24 +300,29 @@ namespace dataglove_publisher{
     jointstate_raw_msg.position.clear();
     jointstate_raw_msg.velocity.clear();
 
-    ros::Duration dt = callbacktime - last_time;
+    //ros::Duration dt = callbacktime - last_time;
+    ros::Duration dt = g_callbacktime - last_time;
 
     for(int i=0;i<GLOVE_SIZE;i++){
-      raw_vel[i] = (short unsigned int)((double)(GLOBAL_RAW_[i] - raw_old[i]) / ((double) dt.toSec()));
-      scaled_vel[i] = (float)((GLOBAL_SCALED_[i] - scaled_old[i]) / (double) dt.toSec());
+      //raw_vel[i] = (short unsigned int)((double)(GLOBAL_RAW_[i] - raw_old[i]) / ((double) dt.toSec()));
+      //scaled_vel[i] = (float)((GLOBAL_SCALED_[i] - scaled_old[i]) / (double) dt.toSec());
+      raw_vel[i] = (short unsigned int)((double)(g_raw[i] - raw_old[i]) / ((double) dt.toSec()));
+      scaled_vel[i] = (float)((g_raw[i] - scaled_old[i]) / (double) dt.toSec());
     }
 
 
     for(int i=0;i<GLOVE_SIZE;i++){
-      jointstate_raw_msg.position.push_back(GLOBAL_RAW_[i]);
+      //jointstate_raw_msg.position.push_back(GLOBAL_RAW_[i]);
+      jointstate_raw_msg.position.push_back(g_raw[i]);
       jointstate_raw_msg.effort.push_back(0.0);
       jointstate_raw_msg.velocity.push_back(raw_vel[i]);
-      jointstate_msg.position.push_back(GLOBAL_SCALED_[i]);
+      //jointstate_msg.position.push_back(GLOBAL_SCALED_[i]);
+      jointstate_msg.position.push_back(g_scaled[i]);
       jointstate_msg.effort.push_back(0.0);
       jointstate_msg.velocity.push_back(scaled_vel[i]);
     }
-    jointstate_msg.header.stamp = callbacktime ;
-    jointstate_raw_msg.header.stamp = callbacktime ;
+    jointstate_msg.header.stamp = g_callbacktime ;
+    jointstate_raw_msg.header.stamp = g_callbacktime ;
 
  
     
@@ -316,11 +331,14 @@ namespace dataglove_publisher{
     dataglove_raw_pub.publish(jointstate_raw_msg);
 
     for(int i=0;i<GLOVE_SIZE;i++){
-      raw_old[i] = GLOBAL_RAW_[i];
-      scaled_old[i] = GLOBAL_SCALED_[i];
+      //raw_old[i] = GLOBAL_RAW_[i];
+      //scaled_old[i] = GLOBAL_SCALED_[i];
+      raw_old[i] = g_raw[i];
+      scaled_old[i] = g_scaled[i];
     }
 
-    last_time = callbacktime;
+    //last_time = callbacktime;
+    last_time = g_callbacktime;
     ros::spinOnce();
     //publish_rate.sleep();
   }

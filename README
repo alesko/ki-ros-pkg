@@ -1,0 +1,5 @@
+The directrory 'dataglove' contains a ROS publisher for the 5DT Ultra glove:
+http://www.5dt.com/products/pdataglove5u.html
+
+The driver must be installed separatly. 
+

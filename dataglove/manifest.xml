@@ -1,18 +1,22 @@
 <package>
   <description brief="dataglove">
 
-     dataglove
+    ROS package for the 5DT Ultra glove. 
 
   </description>
   <author>Alexander Skoglund</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
+  <versioncontrol type="git" url="https://github.com/alesko/KIROS/tree/master/dataglove" />
   <url>http://ros.org/wiki/dataglove</url>
   <depend package="roslib"/>
   <depend package="rospy"/>
   <depend package="roscpp"/>
   <depend package="std_msgs"/>
   <depend package="sensor_msgs"/>
+  <export>
+    <cpp cflags="-I${prefix}/include -I${prefix}/msg/cpp -I${prefix}/srv/cpp" lflags="-L${prefix}/lib -lros "/>
+  </export>
 </package>
 
 
