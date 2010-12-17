@@ -1,0 +1,12 @@
+# 
+# Set target values for the controllers
+#
+int16[8] target
+#int16 target1
+#int16 target2
+#int16 target3
+#int16 target4
+#int16 target5
+#int16 target6
+#int16 target7
+---

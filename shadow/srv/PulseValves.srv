@@ -1,0 +1,13 @@
+#
+# Pulse valves on SPCU
+#
+#Header  header          # header
+uint16  valve0_time_ms   # valve list
+uint16  valve1_time_ms   # valve list
+uint16  valve2_time_ms   # valve list
+uint16  valve3_time_ms   # valve list
+uint16  valve4_time_ms   # valve list
+uint16  valve5_time_ms   # valve list
+uint16  valve6_time_ms   # valve list
+uint16  valve7_time_ms   # valve list
+---

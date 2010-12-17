@@ -1,0 +1,7 @@
+#
+# Get sensor reading from the SPCU
+#
+# string     statusreq
+---
+Header     header         # header
+uint16[8]  Sensors        # sensor array

@@ -1,0 +1,18 @@
+#
+# Get the system status of the SPCU
+# 
+---
+uint16[2]  TimeStamp
+uint16[8]  Sensors
+uint16[8]  Targets
+uint16[8]  ValveStates
+byte       SetValveStates
+byte       ActualValveStates
+byte       LATAreg
+byte       LATBreg
+byte       ForceStates
+uint16[8]  Controller_Sensor
+uint16[8]  Controller_Target
+uint16[8]  Controller_P
+uint16[8]  Controller_I
+uint16[8]  Controller_D

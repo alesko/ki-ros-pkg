@@ -1,0 +1,10 @@
+#
+# Set controller values for the SPCU
+#
+int16     Controller_valve
+int16     Controller_sensor
+int16     Controller_P
+int16     Controller_I
+int16     Controller_D
+int16     Controller_target
+---

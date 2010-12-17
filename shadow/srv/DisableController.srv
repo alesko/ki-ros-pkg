@@ -1,0 +1,5 @@
+#
+# Set controller values for the SPCU
+#
+int16    Controller_valve
+---
