@@ -77,12 +77,17 @@
 
 #include <control_toolbox/pid.h>
 
-boost::mutex shadow_mutex_ ; //GCLOBAL
-boost::mutex glove_mutex_ ; //GCLOBAL
+
+#include "std_msgs/String.h"
+#include <sensor_msgs/JointState.h>
 
 class ShadowPID
 {
  private:
+  boost::mutex shadow_mutex_ ; //GCLOBAL
+  boost::mutex glove_mutex_ ; //GCLOBAL
+  unsigned int sensordata_[8];
+  float glovedata_[18];
 
   //ros::NodeHandle node_;
   
@@ -132,18 +137,24 @@ class ShadowPID
   shadow::ShadowSensors setpoint_msg;
 
   void alterSetPoint();
-  void publishSetPoint();
+  //void publishSetPoint();
 
-  ShadowPID(double P,double I,double D,double I1,double I2);
+  ShadowPID(); //double P,double I,double D,double I1,double I2);
   ~ShadowPID();
 
+  void initPID(double P, double I, double D, double I1, double I2);
+
   //void ShadowPID::ShadowSensorMsgCallback(const boost::shared_ptr<const shadow::ShadowSensors> &msg);
+  void ShadowSensorMsgCallback(const boost::shared_ptr<const shadow::ShadowSensors> &msg);
+  void GloveSensorMsgCallback(const boost::shared_ptr<const sensor_msgs::JointState> &msg);
   //void ShadowSensorMsgCallback(const shadow::ShadowSensors &msg);
   //bool spin();  
   void controlspin();
   
   // Contoller commands
   //bool controllerInit();
+  void initCallback();
+  void initGloveCallback();
   void controllerStarting();
   void controllerUpdate(double position_desi_[4]);
   void setTarget(double position_desi_[4]);

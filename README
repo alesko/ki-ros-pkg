@@ -3,3 +3,7 @@ http://www.5dt.com/products/pdataglove5u.html
 
 The driver must be installed separatly. 
 
+The directrory 'shadow' contains a ROS publisher for the Shadow Pneumatic Control Unit
+http://www.shadowrobot.com/SPCU/overview.shtml
+
+

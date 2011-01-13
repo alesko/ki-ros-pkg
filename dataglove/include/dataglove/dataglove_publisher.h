@@ -68,47 +68,48 @@ class DataglovePublisher
   /// Destructor
   ~DataglovePublisher();
 
-  int GloveInit(std::string path_to_glove);
-
-  Publisher dataglove_pub;
-
+  //int GloveInit(std::string path_to_glove);
+  // Functions
+  int  GloveInit();               // Glove must be initialized
+  int  initCallback();               // Glove must be initialized
   void publish();
   bool isPublishing();
   void setPublishing(bool value);
 
-  fdGlove*     pGloveA;
+  // Internal variables
+  Publisher dataglove_pub_; // Due to the callback
+  fdGlove*     pGloveA_;
+
  private:
-  int          glovetype;
-  std::string  szPort;
-  std::string  szType;
-  /////////////////
-  //  CALLBACKS  //
-  /////////////////
-
-  ros::Time last_time;
-  
-  //ros node handle
-  NodeHandle node, n_tilde;
-  Rate publish_rate;
-  std::string path_to_glove;
-  bool publishing;
-
-  Publisher dataglove_raw_pub;
-
-  sensor_msgs::JointState jointstate_msg;
-  sensor_msgs::JointState jointstate_raw_msg;
-
+  // Function
   void add_jointstate(float position, std::string joint_name);
 
-  std::vector<float> calibration_values;
+  //ROS variables
+  NodeHandle  n_tilde_; //node
+  Rate publish_rate_;
+  bool publishing_;
+  Publisher dataglove_raw_pub;
 
-  float* glovePositions;
+
+  // Glove variables
+  int          glovetype_;
+  std::string  szPort_;
+  std::string  szType_;
+  ros::Time    last_time_;
+  //float*       glovePositions_;
+  //std::vector<float> calibration_values_;
+
+  sensor_msgs::JointState jointstate_msg_;
+  sensor_msgs::JointState jointstate_raw_msg_;
+
+  short unsigned int raw_old_[18];  
+  float scaled_old_[18];  
+  short unsigned int raw_vel_[18];    
+  float scaled_vel_[18];
+ 
+ 
+
   
-  short unsigned int raw_old[18];  
-  float scaled_old[18];
-  
-  short unsigned int raw_vel[18];    
-  float scaled_vel[18];
 
 }; // end class DataglovePublisher
 

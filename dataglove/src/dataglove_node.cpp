@@ -79,6 +79,9 @@ int main(int argc, char** argv)
   //NodeHandle n;
   //boost::shared_ptr<DataglovePublisher> cyberglove_pub(new DataglovePublisher());
   boost::shared_ptr<DataglovePublisher> dataglove_pub(new DataglovePublisher());
+  //dataglove_pub.getPathToGlove();
+  dataglove_pub->GloveInit();
+  dataglove_pub->initCallback();
 
   //CyberglovePublisher *cyberglove_pub = new CyberglovePublisher();
   //CybergloveService service(cyberglove_pub);  
