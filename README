@@ -3,6 +3,16 @@ http://www.5dt.com/products/pdataglove5u.html
 
 The driver must be installed separatly. 
 
+To start a dataglove node: 
+1. Make sure that you hane the right premmistion, e.g.,
+   sudo chmod 666 /dev/usb/hiddevX 
+   
+   where X is the portnumber
+2. Modify the port in the launch file, dataglove.launch
+3. Run roslaunch:
+   roslaunch dataglove dataglove.launch
+
+
 The directrory 'shadow' contains a ROS publisher for the Shadow Pneumatic Control Unit
 http://www.shadowrobot.com/SPCU/overview.shtml
 
