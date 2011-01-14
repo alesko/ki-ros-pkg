@@ -52,20 +52,20 @@ using namespace ros;
 namespace dataglove_service{
 
   DatagloveService::DatagloveService(boost::shared_ptr<dataglove_publisher::DataglovePublisher> publish)                  
-    :  node("~"), pub(publish)
+    :  node_("~"), pub_(publish)
   {
-    service_start = node.advertiseService("start",&DatagloveService::start,this);
+    service_start_ = node_.advertiseService("start",&DatagloveService::start,this);
     ROS_INFO("Listening for service");
   }
 
   bool DatagloveService::start(dataglove::Start::Request &req, dataglove::Start::Response &res){
     if(req.start){
       ROS_INFO("Glove is now publishing");
-      this->pub->setPublishing(true);    
+      this->pub_->setPublishing(true);    
     }
     else{
       ROS_INFO("Glove has stopped publishing");
-      this->pub->setPublishing(false);
+      this->pub_->setPublishing(false);
     }
     //this->pub->cyberglove_pub.shutdown();
     return true;
