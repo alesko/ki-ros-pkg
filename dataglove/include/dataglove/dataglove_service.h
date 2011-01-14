@@ -64,9 +64,9 @@ class DatagloveService
   
  private:
     
-  NodeHandle node;
-  boost::shared_ptr<dataglove_publisher::DataglovePublisher> pub;
-  ros::ServiceServer service_start;
+  NodeHandle node_;
+  boost::shared_ptr<dataglove_publisher::DataglovePublisher> pub_;
+  ros::ServiceServer service_start_;
   
 }; 
 
