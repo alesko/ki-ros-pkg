@@ -1,0 +1,7 @@
+<launch>
+  <node name="dataglove" pkg="dataglove" type="dataglove">
+    <param name="dataglove_prefix" type="string" value="/dataglove" />
+    <param name="path_to_glove" type="string" value="/dev/usb/hiddev0" />
+    <param name="publish_frequency" type="double" value="75.0" />
+  </node>	 
+</launch>
