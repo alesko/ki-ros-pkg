@@ -1,0 +1,13 @@
+#
+# Pulse valves on SPCU
+#
+#Header  header          # header
+uint16  valve0_state   # valve list
+uint16  valve1_state   # valve list
+uint16  valve2_state   # valve list
+uint16  valve3_state   # valve list
+uint16  valve4_state   # valve list
+uint16  valve5_state   # valve list
+uint16  valve6_state   # valve list
+uint16  valve7_state   # valve list
+---

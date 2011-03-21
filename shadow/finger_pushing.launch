@@ -1,0 +1,10 @@
+<launch>
+
+  <node name="shadow" pkg="shadow" type="shadow_node_main">
+    <param name="shadow_prefix" type="string" value="/shadow" />
+    <param name="path_to_spcu" type="string" value="/dev/ttyUSB0" />
+    <param name="publish_frequency" type="double" value="60.0" />
+    <param name="number_of_trials" value="2" />
+  </node>
+	 
+</launch>
