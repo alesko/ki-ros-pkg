@@ -65,14 +65,19 @@ void ShadowPID::ShadowSensorMsgCallback(const boost::shared_ptr<const shadow::Sh
     sensordata_[i] = msg->sensor[i];
   //shadow_mutex_.unlock();
 
-  ROS_INFO("Sensor data %d %d %d %d %d %d %d %d", sensordata_[0], sensordata_[1], sensordata_[2], sensordata_[3],
-	   sensordata_[4], sensordata_[5], sensordata_[6], sensordata_[7]);
+  //ROS_INFO("Sensor data %d %d %d %d %d %d %d %d", sensordata_[0], sensordata_[1], sensordata_[2], sensordata_[3],
+  //	   sensordata_[4], sensordata_[5], sensordata_[6], sensordata_[7]);
 
 }
 
 ShadowPID::ShadowPID(): //double P, double I, double D, double I1, double I2):
   loop_rate(120.0)
 {
+  std::string searched_param;
+
+  // Find the prefix
+  private_nh_.searchParam("shadow_prefix", searched_param);
+  private_nh_.param(searched_param, prefix_, std::string());
   control_loop_rate=120.0;
 }
 
@@ -82,22 +87,29 @@ ShadowPID::ShadowPID(): //double P, double I, double D, double I1, double I2):
 void ShadowPID::initPID(double P, double I, double D, double I1, double I2)
 {
   
-  client_pub = nh.serviceClient<shadow::StartPublishing>("/shadow/publishing_service");
-  client_valve = nh.serviceClient<shadow::PulseValves>("/shadow/pulse_valves");
+  std::string full_topic = prefix_ + "/publishing_service";
+  client_pub = private_nh_.serviceClient<shadow::StartPublishing>(full_topic);
+  full_topic = prefix_ + "/pulse_valves";
+  client_valve = private_nh_.serviceClient<shadow::PulseValves>(full_topic);
+
+  full_topic = prefix_ + "/setpoint_msg";
+  setpoint_pub_ = private_nh_.advertise<shadow::ShadowSensors>(full_topic, 5 ); // Que len
+
+  
+  //full_topic = prefix_ + "/sensor_msg";
+  //shadow_sensor_sub_ = private_nh_.subscribe(full_topic, 5, ShadowSensorMsgCallback);
+
   //client_controller = nh.serviceClient<shadow::SetController>("/shadow/enable_controller");
   //client_target = nh.serviceClient<shadow::SetTargets>("/shadow/set_targets");
   //client_glove = nh.serviceClient<cyberglove::Start>("/cyberglove_publisher/start");
 
 
-  //shadow_sensor_sub = nh.subscribe("/shadow/sensor_msg", 5, ShadowSensorMsgCallback);
+  
   /*ShadowPID pid_object(0.03, 0.00, 0.00, 0.0, -0.0);
     shadow_sensor_sub = nh.subscribe("/shadow/sensor_msg", 5, &ShadowPID::ShadowSensorMsgCallbackNEW, &pid_object);*/
 
   //message_filters::Subscriber<shadow::ShadowSensors> shadow_sensor_sub(nh, "/shadow/sensor_msg" , 5);
   //shadow_sensor_sub.registerCallback(ShadowSensorMsgCallback);
-
-  setpoint_pub_ = nh.advertise<shadow::ShadowSensors>("/shadow/setpoint_msg",5 ); // Que len
-
 
   /*
   client_glove = nh.serviceClient<dataglove::Start>("/dataglove_publisher/start");
@@ -174,7 +186,14 @@ void ShadowPID::initCallback()
 {
 
   ShadowPID pid_object;//0.03, 0.00, 0.00, 0.0, -0.0);
-  shadow_sensor_sub = nh.subscribe("/shadow/sensor_msg", 5, &ShadowPID::ShadowSensorMsgCallback, &pid_object);
+  //std::string full_topic = prefix_ + "/sensor_msg";
+  std::string full_topic = prefix_ + "/publishing_service";
+
+  // Requense the shadow publishing service to start
+  ROS_INFO("full_topic %s",full_topic.c_str() );
+  
+  //client_glove = nh.serviceClient<dataglove::Start>("/dataglove_publisher/start");  
+  //client_pub = private_nh_.serviceClient<shadow::Start>(full_topic);  
 
   // Call the service to start publishing 
   publishing_state_.request.start = true;
@@ -183,6 +202,13 @@ void ShadowPID::initCallback()
   else
     ROS_ERROR("Failed to call service shadow publishing service");
 
+  // Subscribe to sensordata from the SPCU
+
+  full_topic = prefix_ + "/sensor_msg";
+  ROS_INFO("full_topic %s",full_topic.c_str() );
+
+  shadow_sensor_sub_ = private_nh_.subscribe(full_topic, 5, &ShadowPID::ShadowSensorMsgCallback, &pid_object);
+
   controllerStarting();
 
 }
@@ -190,14 +216,15 @@ void ShadowPID::initCallback()
 void ShadowPID::initGloveCallback()
 {
   ShadowPID pid_object;//0.03, 0.00, 0.00, 0.0, -0.0);
-  client_glove = nh.serviceClient<dataglove::Start>("/dataglove_publisher/start");
-  
+  std::string full_topic = prefix_ + "/start";
+  client_glove = private_nh_.serviceClient<dataglove::Start>(full_topic);
+
   // Call the dataglove service to start publishing 
   glove_publishing_state_.request.start = true;
   if (client_glove.call(glove_publishing_state_))
     {
       ROS_INFO("Glove publishing service started" );
-      glove_sub = nh.subscribe("/raw/joint_states", 10, &ShadowPID::GloveSensorMsgCallback, &pid_object);
+      glove_sub = private_nh_.subscribe("/raw/joint_states", 10, &ShadowPID::GloveSensorMsgCallback, &pid_object);
     }
   else
     ROS_ERROR("Failed to call glove publishing service");
@@ -222,7 +249,7 @@ void ShadowPID::controllerStopping()
 {
 }
 
-void ShadowPID::controllerUpdate(double position_desi_[4])
+void ShadowPID::controllerUpdate(double position_desi[4])
 {
 
   ros::Time time = ros::Time::now();
@@ -239,8 +266,8 @@ void ShadowPID::controllerUpdate(double position_desi_[4])
     {
       for(i = 0; i < 2; i++){
 	//printf("i: %d: %d %d\n",i, i*2, i*2+1);
-	effort_hi = pid_controller_[i*2].updatePid((double) sensordata_[i] - (position_desi_[i]+10), time - last_time);
-	effort_low = pid_controller_[i*2+1].updatePid((double) sensordata_[i] - (position_desi_[i]-10), time - last_time);
+	effort_hi = pid_controller_[i*2].updatePid((double) sensordata_[i] - (position_desi[i]+10), time - last_time);
+	effort_low = pid_controller_[i*2+1].updatePid((double) sensordata_[i] - (position_desi[i]-10), time - last_time);
 	//printf("i: %d: %d %d\n",i, i*2, i*2+1);
 	//printf("hi: %f:\nlow: %f\n",effort_hi, effort_low);
 	
@@ -274,7 +301,7 @@ void ShadowPID::controllerUpdate(double position_desi_[4])
       }
       last_time = time;
       //ROS_INFO("Valve ms\t%d\t%d\t%d\t%d", valve_ms[0],valve_ms[1],valve_ms[2],valve_ms[3]);
-      ROS_INFO("Sensor[0] %d, des: %f Low %f High %lf\t%d:%d", (int) sensordata_[0], position_desi_[0], effort_low, effort_hi,valve_states_.request.valve0_time_ms, valve_states_.request.valve1_time_ms );
+      ROS_INFO("Sensor[0] %d, des: %f Low %f High %lf\t%d:%d", (int) sensordata_[0], position_desi[0], effort_low, effort_hi,valve_states_.request.valve0_time_ms, valve_states_.request.valve1_time_ms );
       valve_states_.request.valve0_time_ms = valve_ms[0];
       valve_states_.request.valve1_time_ms = valve_ms[1];
       valve_states_.request.valve2_time_ms = valve_ms[2];
@@ -315,10 +342,10 @@ void ShadowPID::setTarget(double position_desi_[4])
 /*void ShadowPID::publishSetPoint()
 {
  
-  setpoint_msg.header.stamp = ros::Time::now();    
+  setpoint_msg_.header.stamp = ros::Time::now();    
    
   //publish the msgs
-  setpoint_pub_.publish(setpoint_msg);
+  setpoint_pub_.publish(setpoint_msg_);
 
   }*/
 
@@ -329,8 +356,8 @@ void ShadowPID::alterSetPoint()
   set_point[1] = 1100 - 500 * sin(5 * t);
   set_point[2] = 0;
   set_point[3] = 0;
-  setpoint_msg.sensor[0] = set_point[0];
-  setpoint_msg.sensor[1] = set_point[1];*/
+  setpoint_msg_.sensor[0] = set_point[0];
+  setpoint_msg_.sensor[1] = set_point[1];*/
   
   // Inverse kinematics
   // replace with a calibration process
@@ -344,22 +371,31 @@ void ShadowPID::alterSetPoint()
   float d1 = -g_min * k+s_min;
   float d2 = g_min * k+s_max;
   
-  set_point[0] = glovedata_[3]*-k+d2;
-  set_point[1] = glovedata_[3]*k+d1;
-  set_point[2] = 0;
-  set_point[3] = 0;
-  setpoint_msg.sensor[0] = set_point[0];
-  setpoint_msg.sensor[1] = set_point[1];
+  set_point_[0] = glovedata_[3]*-k+d2;
+  set_point_[1] = glovedata_[3]*k+d1;
+  set_point_[2] = 0;
+  set_point_[3] = 0;
+  setpoint_msg_.sensor[0] = set_point_[0];
+  setpoint_msg_.sensor[1] = set_point_[1];
+
+}
+
+void ShadowPID::SetDesiredValue(float des[4])
+{
+  int i;
+  
+  for(i=0;i<4;i++)      
+    set_point_[i] = des[i];
 
 }
 
 void ShadowPID::controlspin()
 {
 
-  while (nh.ok())
+  while (private_nh_.ok())
     {
       alterSetPoint();
-      controllerUpdate(set_point);
+      controllerUpdate(set_point_);
       //setTarget(set_point);
       //publishSetPoint();
       ros::spinOnce();
@@ -375,9 +411,9 @@ int main(int argc, char **argv)
 
   ShadowPID sc(0.03, 0.00, 0.00, 0.0, -0.0); //Get from parameter server instead
   sc.initCallback();
-  //sc.track_point = 1000.0;
+  //sc.track_point_ = 1000.0;
   //sc.set_point = 1000.0;
-  //sc.set_point_dir=80.0;
+  //sc.set_point_dir_=80.0;
   sc.controlspin();
   
   

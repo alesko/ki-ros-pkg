@@ -84,32 +84,34 @@
 class ShadowPID
 {
  private:
-  boost::mutex shadow_mutex_ ; //GCLOBAL
-  boost::mutex glove_mutex_ ; //GCLOBAL
+  boost::mutex shadow_mutex_ ; 
+  boost::mutex glove_mutex_ ; 
   unsigned int sensordata_[8];
   float glovedata_[18];
+
+  std::string prefix_; // For parameter server
 
   //ros::NodeHandle node_;
   
   //shadow_spcu_p shadow_;
 
   //ros node handle
-  ros::NodeHandle n_tilde;
-  //ros::NodeHandle private_nh; //("~");
+  //ros::NodeHandle n_tilde;
+  ros::NodeHandle private_nh_; //("~");
 
-  ros::NodeHandle nh;  
+  //ros::NodeHandle nh;  
   ros::ServiceClient client_pub;
   ros::ServiceClient client_valve;
   ros::ServiceClient client_glove;
   ros::ServiceClient client_target;
   ros::ServiceClient client_controller;
   
-  ros::Subscriber shadow_sensor_sub;
+  ros::Subscriber shadow_sensor_sub_;
   ros::Subscriber glove_sub;
   ros::Publisher setpoint_pub_;
 
   shadow::StartPublishing publishing_state_;
-  shadow::PulseValves valve_states_;
+  shadow::PulseValves valve_states_;                //shadow::Valves valve_states_;
   //cyberglove::Start glove_publishing_state_;
   dataglove::Start glove_publishing_state_;
   shadow::SetTargets target_values;
@@ -124,20 +126,21 @@ class ShadowPID
 
   // Internal variables
 
-  shadow::ShadowSensors sensor_msg;
-  shadow::Valves valve_states;
+  //shadow::ShadowSensors sensor_msg_;
+
   ros::Time last_time;
   double control_loop_rate;
 
 
  public:
-  double set_point[4];
-  double set_point_dir;
-  double track_point;
-  shadow::ShadowSensors setpoint_msg;
+  double set_point_[4];
+  double set_point_dir_;
+  double track_point_;
+  shadow::ShadowSensors setpoint_msg_;
 
   void alterSetPoint();
   //void publishSetPoint();
+  void SetDesiredValue(float des[4]);
 
   ShadowPID(); //double P,double I,double D,double I1,double I2);
   ~ShadowPID();

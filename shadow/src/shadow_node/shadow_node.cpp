@@ -61,37 +61,94 @@
 #include <shadow/GetStatus.h>
 #include <shadow/GetSensors.h>
 #include <shadow/SetTargets.h>
+#include <shadow/SetValves.h>
 #include <shadow/PulseValves.h>
 #include <shadow/StartPublishing.h>
 
+using namespace ros;
 
-ShadowNode::ShadowNode(std::string dev) : private_nh("~"), publish_rate(60)
+ShadowNode::ShadowNode() : private_nh_("~"), publish_rate_(60)
+{
+  std::string dev;
+  std::string searched_param;
+  double publish_freq;
+
+  ROS_INFO("Creating a Shadow SPCU node");
+    
+  shadow_ = shadowInitialize();
+
+  // Find the Shadow prefix
+  private_nh_.searchParam("shadow_prefix", searched_param);
+  private_nh_.param(searched_param, prefix_, std::string());
+
+  // set path to SPCU
+  std::string full_topic = prefix_ + "/path_to_spcu";
+  if (private_nh_.getParam(full_topic, dev))
+    {
+      ROS_INFO("Path to SPCU is: %s", dev.c_str());
+    }
+  else
+    {
+      ROS_ERROR("Unable to determine path to SPCU, full_topic=%s", full_topic.c_str());
+      return;
+    }
+
+  strcpy(shadow_->dev.ttyport, dev.c_str());
+
+  //private_nh_.searchParam("/spcu_publish_frequency", searched_param);
+  //private_nh_.param(searched_param, prefix_, std::string());
+
+
+  // set publish frequency from parameter server
+  full_topic = prefix_ + "/spcu_publish_frequency";    
+
+  if (private_nh_.getParam(full_topic, publish_freq))
+    {      
+      ROS_INFO("Frequency from %s is %f", full_topic.c_str(), publish_freq);
+      publish_rate_ = Rate(publish_freq);      
+    }
+  
+  ROS_INFO("Shadow SPCU node is created");
+
+}
+
+ShadowNode::ShadowNode(std::string dev) : private_nh_("~"), publish_rate_(60)//publish_rate_(60)
 {
 
-  int msg_que_len = 5;    
-
-  ROS_INFO("Initializing Shadow SPCU");
+  
     
   shadow_ = shadowInitialize();
 
   strcpy(shadow_->dev.ttyport, dev.c_str());
     
-  if (shadowDeviceConnectPort(&shadow_->dev) < 0) {
-    ROS_FATAL("Unable to connect shadow at %s\n", shadow_->dev.ttyport);
-    private_nh.shutdown();
-    return;   
-  }
-  else{
-    ROS_INFO("Connected to device");
-    //publishes sensor readings
-    std::string prefix;
-    std::string searched_param;
-    private_nh.searchParam("shadow_prefix", searched_param);
-    private_nh.param(searched_param, prefix, std::string());
-    std::string full_topic = prefix + "/shadow/sensor_msg";
-    ROS_INFO("Starting publisher!");
-    shadow_pub = private_nh.advertise<shadow::ShadowSensors>(full_topic,msg_que_len );
-  }
+ 
+}
+
+void ShadowNode::ShadowInit()
+{
+  ROS_INFO("Initializing Shadow SPCU");
+  int msg_que_len = 5;    
+
+  if (shadowDeviceConnectPort(&shadow_->dev) < 0) 
+    {
+      ROS_FATAL("Unable to connect shadow at %s\n", shadow_->dev.ttyport);
+      private_nh_.shutdown();
+      return;   
+    }
+  else
+    {
+      ROS_INFO("Connected to device");
+      //publishes sensor readings
+      //std::string prefix;
+      //std::string searched_param;
+      //private_nh_.searchParam("shadow_prefix", searched_param);
+      //private_nh_.param(searched_param, prefix_, std::string());
+      std::string full_topic = prefix_ + "/sensor_msg";
+      ROS_INFO("Starting publisher!");
+      shadow_pub_ = private_nh_.advertise<shadow::ShadowSensors>(full_topic,msg_que_len );
+      full_topic = prefix_ + "/target_msg";
+      target_pub_ = private_nh_.advertise<shadow::ShadowTargets>(full_topic,msg_que_len );
+    }
     
   // ***** Parameters *****
 
@@ -99,20 +156,20 @@ ShadowNode::ShadowNode(std::string dev) : private_nh("~"), publish_rate(60)
   shadowHexStatus(shadow_);  
   shadowPrintParams(&shadow_->par);
      
-  //sensor_reading_pub_ = private_nh.advertise<shadow::Sensors>("sensors_pub", 100);
+  //sensor_reading_pub_ = private_nh_.advertise<shadow::Sensors>("sensors_pub", 100);
 
   ROS_INFO("Starting services!");
-  system_status_srv_ = private_nh.advertiseService("get_status", &ShadowNode::getStatus,this);
-  set_valves_srv_ = private_nh.advertiseService("set_valves", &ShadowNode::setValves,this);
-  pulse_valves_srv_ = private_nh.advertiseService("pulse_valves", &ShadowNode::pulseValves,this);
-  sensor_reading_srv_ = private_nh.advertiseService("get_sensor_readings", &ShadowNode::getSensorReading,this);
-  targets_srv_ = private_nh.advertiseService("set_targets", &ShadowNode::setTargets,this);
-  contoller_srv_ = private_nh.advertiseService("enable_controller", &ShadowNode::setController,this);
-  contoller_target_srv_ = private_nh.advertiseService("enable_controller_target", &ShadowNode::setControllerwTarget,this);
-  disable_contoller_srv_ = private_nh.advertiseService("disable_controller", &ShadowNode::disController,this);
-  publishing_srv_ = private_nh.advertiseService("publishing_service", &ShadowNode::setPublishing,this);
+  system_status_srv_ = private_nh_.advertiseService("get_status", &ShadowNode::getStatus,this);
+  set_valves_srv_ = private_nh_.advertiseService("set_valves", &ShadowNode::setValves,this);
+  pulse_valves_srv_ = private_nh_.advertiseService("pulse_valves", &ShadowNode::pulseValves,this);
+  sensor_reading_srv_ = private_nh_.advertiseService("get_sensor_readings", &ShadowNode::getSensorReading,this);
+  targets_srv_ = private_nh_.advertiseService("set_targets", &ShadowNode::setTargets,this);
+  contoller_srv_ = private_nh_.advertiseService("enable_controller", &ShadowNode::setController,this);
+  contoller_target_srv_ = private_nh_.advertiseService("enable_controller_target", &ShadowNode::setControllerwTarget,this);
+  disable_contoller_srv_ = private_nh_.advertiseService("disable_controller", &ShadowNode::disController,this);
+  publishing_srv_ = private_nh_.advertiseService("publishing_service", &ShadowNode::setPublishing,this);
 
-  publishing = false;
+  publishing_ = false;
   ROS_INFO("Shadow SPCU is ready!");
 
 }
@@ -125,14 +182,27 @@ ShadowNode::~ShadowNode()
 
 }
 
-bool ShadowNode::setValves(shadow::GetSensors::Request& req, shadow::GetSensors::Response& resp)
+bool ShadowNode::setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp)
 {   
+  int set_valve[NUM_VALVES]={0,0,0,0,0,0,0,0};
+  //if( req.valve0_state > 
+  set_valve[0]=req.valve0_state; 
+  set_valve[1]=req.valve1_state;
+  set_valve[2]=req.valve2_state; 
+  set_valve[3]=req.valve3_state;
+  set_valve[4]=req.valve4_state; 
+  set_valve[5]=req.valve5_state;
+  set_valve[6]=req.valve6_state; 
+  set_valve[7]=req.valve7_state;
+
+  shadowHexSetValves(&shadow_->dev, set_valve);
   return true;
+
 }
 
 bool ShadowNode::pulseValves(shadow::PulseValves::Request& req, shadow::PulseValves::Response& resp)
 {   
-  int i;
+  //  int i;
   int p_time_ms[NUM_VALVES]={req.valve0_time_ms, req.valve1_time_ms,
 			     req.valve2_time_ms, req.valve3_time_ms,
 			     req.valve4_time_ms, req.valve5_time_ms,
@@ -205,18 +275,18 @@ bool ShadowNode::setTargets(shadow::SetTargets::Request& req, shadow::SetTargets
   // TODO: check why this function makes the hardware "hang"
   // Impossible to retrive the status after the target is set
   
-  int  set_target[NUM_VALVES];
+  //int  set_target[NUM_VALVES];
   int i;
   for(i=0; i < NUM_VALVES; i++)
-    set_target[i]= req.target[i];
+    set_target_[i]= req.target[i];
   for(i=0; i < NUM_VALVES; i++)
-    ROS_INFO("SHADOW: Setting targets:[%d]=%d",i,set_target[i]);
+    ROS_INFO("SHADOW: Setting targets:[%d]=%d",i,set_target_[i]);
  
   ROS_INFO("SHADOW: Setting targets");
 
   shadow_mutex_.lock();
   //shadowHexSetTargets(&shadow_->dev,set_target);
-  shadowAsciiSetTargets(&shadow_->dev,set_target);
+  shadowAsciiSetTargets(&shadow_->dev,set_target_);
   shadow_mutex_.unlock();
 
 
@@ -274,32 +344,34 @@ bool ShadowNode::getStatus(shadow::GetStatus::Request& req, shadow::GetStatus::R
 
 bool ShadowNode::setPublishing(shadow::StartPublishing::Request& req, shadow::StartPublishing::Response& resp)
 {
-  if(req.start){
-    ROS_INFO("SPCU is now publishing sensor data");
-    publishing = true;
-    resp.state = true;
-    //this->pub->setPublishing(true);    
-  }
-  else{
-    ROS_INFO("SPCU has stopped publishing");
-    publishing = false;
-    resp.state = false;
-    //this->pub->setPublishing(false);
-  }
+  if(req.start)
+    {
+      ROS_INFO("SPCU is now publishing sensor data");
+      publishing_ = true;
+      resp.state = true;
+      //this->pub->setPublishing(true);    
+    }
+  else
+    {
+      ROS_INFO("SPCU has stopped publishing");
+      publishing_ = false;
+      resp.state = false;
+      //this->pub->setPublishing(false);
+    }
   //this->pub->cyberglove_pub.shutdown();
   return true;
 }
 
 bool  ShadowNode::isPublishing()
 {
-  if (publishing)
+  if (publishing_)
     {
       return true;
     }
   else
     {
       //ros::spinOnce();
-      //publish_rate.sleep();
+      //publish_rate_.sleep();
       return false;
     }
 }
@@ -313,15 +385,21 @@ void ShadowNode::publish()
   // Read the sensor values
   shadowHexReadSensors(&shadow_->dev,sensor_val);
   shadow_mutex_.unlock();
-  sensor_msg.header.stamp = ros::Time::now();    
+  sensor_msg_.header.stamp = ros::Time::now();    
+  target_msg_.header.stamp = ros::Time::now();    
   // Put the values into a message
   for(i=0; i < NUM_VALVES; i++)
-    sensor_msg.sensor[i] = sensor_val[i];
+    sensor_msg_.sensor[i] = sensor_val[i];
+
+  // Put the values into a message
+  for(i=0; i < NUM_VALVES; i++)
+    target_msg_.target[i] = set_target_[i];
+
    
   //publish the msgs
-  shadow_pub.publish(sensor_msg);
-  //ros::spinOnce();
-  //publish_rate.sleep();
+  shadow_pub_.publish(sensor_msg_);
+  target_pub_.publish(target_msg_);
+
 
 }
 
@@ -334,7 +412,7 @@ bool ShadowNode::spin()
 
   while (node_.ok())
     {
-      if (publishing)
+      if (publishing_)
 	publish();
       /*{
 	  publish();
@@ -342,29 +420,33 @@ bool ShadowNode::spin()
       else
 	{
 	  ros::spinOnce();
-	  //publish_rate.sleep();
+	  //publish_rate_.sleep();
 	}*/
       ros::spinOnce();
-      publish_rate.sleep();
+      publish_rate_.sleep();
     }
   return true;
 }
 
 
-int main(int argc, char **argv)
+/*int main(int argc, char **argv)
 {
 
-  if (argc != 2)
-    {
-      printf("Usage: shadow_node DEVICE\n");
-      return 1;
-    }
-  std::string shadow_dev = argv[1];  
-
   ros::init(argc, argv, "shadow");
-  ShadowNode s(shadow_dev);
-  ROS_INFO("ShadowNode created");
 
-  s.spin();
+  if (argc == 2)
+    {
+      std::string shadow_dev = argv[1];  
+      ShadowNode s(shadow_dev);
+      ROS_INFO("ShadowNode created");
+      s.spin();
+    }
+  else
+    {
+      ShadowNode s;
+      ROS_INFO("ShadowNode created");
+      s.spin();
+    }
+
   return 0;
-}
+  }*/

@@ -51,6 +51,7 @@
 #include <shadow_commands.h>
 #include <shadow_io.h>
 */
+#include <shadow_base.h>
 
 #include <std_msgs/String.h>
 #include <ros/ros.h>
@@ -60,6 +61,7 @@
 // messages
 #include <shadow/ShadowSensors.h>
 #include <shadow/Valves.h>
+#include <shadow/ShadowTargets.h>
 
 // services
 #include <shadow/SetController.h>
@@ -69,6 +71,7 @@
 #include <shadow/SetTargets.h>
 #include <shadow/DisableController.h>
 #include <shadow/PulseValves.h>
+#include <shadow/SetValves.h>
 #include <shadow/StartPublishing.h>
 
 
@@ -81,16 +84,19 @@ class ShadowNode
   boost::mutex shadow_mutex_ ;
   shadow_spcu_p shadow_;
 
+  std::string prefix_; // For parameter server
+
   //ros node handle
-  ros::NodeHandle n_tilde;
-  ros::NodeHandle private_nh; //("~");
+  //ros::NodeHandle n_tilde;
+  ros::NodeHandle private_nh_; //("~");
   std::string device;
   
-  bool publishing;
-  ros::Rate publish_rate;
+  bool publishing_;
+  ros::Rate publish_rate_;
 
-  ros::Publisher shadow_pub;
+  ros::Publisher shadow_pub_;
   ros::Publisher valve_state_pub_;
+  ros::Publisher target_pub_;
   ros::Publisher sensor_reading_pub_;
 
   ros::ServiceServer sensor_reading_srv_;  
@@ -104,7 +110,7 @@ class ShadowNode
   ros::ServiceServer publishing_srv_;
 
   // SPCU commands
-  bool setValves(shadow::GetSensors::Request& req, shadow::GetSensors::Response& resp);
+  bool setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp);
   bool pulseValves(shadow::PulseValves::Request& req, shadow::PulseValves::Response& resp);
   bool getSensorReading(shadow::GetSensors::Request& req, shadow::GetSensors::Response& resp);
   bool setController(shadow::SetController::Request& req, shadow::SetController::Response& resp);
@@ -112,8 +118,7 @@ class ShadowNode
   bool setTargets(shadow::SetTargets::Request& req, shadow::SetTargets::Response& resp);
   bool disController(shadow::DisableController::Request& req, shadow::DisableController::Response& resp);
   bool getStatus(shadow::GetStatus::Request& req, shadow::GetStatus::Response& resp);
-  void publish();
-  bool isPublishing();
+
   bool setPublishing(shadow::StartPublishing::Request &req, shadow::StartPublishing::Response &resp);
 
   // Controller stuff
@@ -122,16 +127,27 @@ class ShadowNode
   ros::ServiceServer controller_srv_;*/
 
   // Interna variables
-  shadow::ShadowSensors sensor_msg;
+  shadow::ShadowSensors sensor_msg_;
+  shadow::ShadowTargets target_msg_;
   shadow::Valves valve_states;
+
+  int  set_target_[NUM_VALVES];
 
  public:
 
+  ShadowNode();
   ShadowNode(std::string dev);
   ~ShadowNode();
+  void ShadowInit();
 
   bool spin();  
   
+  bool getNodeStateOK();
+  ros::Rate getPublishRate();
+  void publish();
+  bool isPublishing();
+
+
   // Contoller commands
   /*bool controllerInit();
   void controllerStarting();

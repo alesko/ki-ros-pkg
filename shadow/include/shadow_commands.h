@@ -52,6 +52,7 @@ extern "C" {
   int  shadowHexStatus(shadow_spcu_p shadow_unit);
   void shadowHexSetByMask(shadow_spcu_device_p dev,enum  MASK_ACTION actions[4] );
 
+  // ASCII commands, due to a bug in the SPCU
   void shadowAsciiSetTargets(shadow_spcu_device_p dev, int set_target[NUM_VALVES]);
   int shadowAsciiSetController(shadow_spcu_device_p dev, unsigned short valve, 
 			       unsigned short sensor, char target, char P, char I, char D);
