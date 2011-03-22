@@ -1,0 +1,8 @@
+#rosbuild_add_executable(shadow_node shadow_node.cpp)
+#target_link_libraries(shadow_node shadow)
+#rosbuild_add_executable(shadow_controller shadow_controller.cpp)
+#target_link_libraries(shadow_controller shadow)
+#rosbuild_add_executable(shadow_target shadow_target.cpp)
+#target_link_libraries(shadow_target shadow)
+#rosbuild_add_executable(shadow_PID shadow_PID.cpp)
+#target_link_libraries(shadow_PID shadow)

@@ -54,7 +54,7 @@
 #include "shadow_node.h"
 
 // messages
-#include <shadow/Sensors.h>
+//#include <shadow/Sensors.h>
 #include <shadow/Valves.h>
 
 // services
