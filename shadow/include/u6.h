@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
-#include "../liblabjack/labjackusb.h"
+#include "labjackusb.h"
 //#include "labjack/labjackusb.h"
 
 #ifdef __cplusplus

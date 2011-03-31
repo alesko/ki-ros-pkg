@@ -52,8 +52,9 @@
 //#include <shadow_io.h>
 
 //#include "shadow_node.h"
-#include "pam_node.h"
+#include "labjack_node.h"
 
+/*
 // messages
 #include <shadow/Sensors.h>
 #include <shadow/Valves.h>
@@ -64,14 +65,15 @@
 #include <shadow/SetTargets.h>
 #include <shadow/SetValves.h>
 #include <shadow/PulseValves.h>
+*/
 #include <shadow/StartPublishing.h>
 
 using namespace ros;
 
-//ShadowNode::ShadowNode() : private_nh_("~"), publish_rate_(60)
-PAMnode::PAMNode() : private_nh_("~"), publish_rate_(100)
+
+LabjackNode::LabjackNode() : private_nh_("~"), publish_rate_(100) //init variabels - ros grej
 {
-  std::string dev;
+  /*std::string dev;
   std::string searched_param;
   double publish_freq;
 
@@ -111,34 +113,31 @@ PAMnode::PAMNode() : private_nh_("~"), publish_rate_(100)
     }
   
   ROS_INFO("Shadow SPCU node is created");
+  */
 
 }
 
-ShadowNode::ShadowNode(std::string dev) : private_nh_("~"), publish_rate_(60)//publish_rate_(60)
+LabjackNode::LabjackNode(std::string dev) : private_nh_("~"), publish_rate_(100) //publish_rate_(60)
 {
-
-  
     
-  shadow_ = shadowInitialize();
-
-  strcpy(shadow_->dev.ttyport, dev.c_str());
-    
+  //shadow_ = shadowInitialize();
+  //strcpy(shadow_->dev.ttyport, dev.c_str());
  
 }
 
-void ShadowNode::ShadowInit()
+void LabjackNode::init()
 {
-  ROS_INFO("Initializing Shadow SPCU");
+  ROS_INFO("Initializing Labjack");
   int msg_que_len = 5;    
 
-  if (shadowDeviceConnectPort(&shadow_->dev) < 0) 
+  /*if (shadowDeviceConnectPort(&shadow_->dev) < 0) 
     {
       ROS_FATAL("Unable to connect shadow at %s\n", shadow_->dev.ttyport);
       private_nh_.shutdown();
       return;   
     }
   else
-    {
+  {
       ROS_INFO("Connected to device");
       //publishes sensor readings
       //std::string prefix;
@@ -147,10 +146,10 @@ void ShadowNode::ShadowInit()
       //private_nh_.param(searched_param, prefix_, std::string());
       std::string full_topic = prefix_ + "/sensor_msg";
       ROS_INFO("Starting publisher!");
-      shadow_pub_ = private_nh_.advertise<shadow::ShadowSensors>(full_topic,msg_que_len );
+      labjack_pub_ = private_nh_.advertise<shadow::ShadowSensors>(full_topic,msg_que_len );
       full_topic = prefix_ + "/target_msg";
       target_pub_ = private_nh_.advertise<shadow::ShadowTargets>(full_topic,msg_que_len );
-    }
+   }
     
   // ***** Parameters *****
 
@@ -168,22 +167,24 @@ void ShadowNode::ShadowInit()
   targets_srv_ = private_nh_.advertiseService("set_targets", &ShadowNode::setTargets,this);
   contoller_srv_ = private_nh_.advertiseService("enable_controller", &ShadowNode::setController,this);
   contoller_target_srv_ = private_nh_.advertiseService("enable_controller_target", &ShadowNode::setControllerwTarget,this);
-  disable_contoller_srv_ = private_nh_.advertiseService("disable_controller", &ShadowNode::disController,this);
-  publishing_srv_ = private_nh_.advertiseService("publishing_service", &ShadowNode::setPublishing,this);
+  disable_contoller_srv_ = private_nh_.advertiseService("disable_controller", &ShadowNode::disController,this);*/
+  publishing_srv_ = private_nh_.advertiseService("publishing_service", &LabjackNode::setPublishing,this);
 
   publishing_ = false;
-  ROS_INFO("Shadow SPCU is ready!");
+
+  ROS_INFO("LabJack is ready!");
 
 }
 
-ShadowNode::~ShadowNode()
+LabjackNode::~LabjackNode() //Destructor destorys object, ~ needed
 {
   ROS_INFO("Closing SPCU" );
-  shadowClear(shadow_);
+  //shadowClear(shadow_);
   ROS_INFO("SPCU closed, goodbye" );
 
 }
 
+/*
 bool ShadowNode::setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp)
 {   
   int set_valve[NUM_VALVES]={0,0,0,0,0,0,0,0};
@@ -232,11 +233,13 @@ bool ShadowNode::getSensorReading(shadow::GetSensors::Request& req, shadow::GetS
   return true;
 }
 
+
+
 bool ShadowNode::setController(shadow::SetController::Request& req, shadow::SetController::Response& resp)
 {   
   
-  /*ROS_INFO("Got: v=%d, s=%d, P=%d, I=%d, D=%d",(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
-    (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);*/
+  //ROS_INFO("Got: v=%d, s=%d, P=%d, I=%d, D=%d",(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
+  //  (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
   shadow_mutex_.lock();
   //shadowHexSetController(&shadow_->dev,(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
   //		 (char)-1, (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
@@ -252,26 +255,8 @@ bool ShadowNode::setController(shadow::SetController::Request& req, shadow::SetC
   return true;
 }
 
-bool ShadowNode::setControllerwTarget(shadow::SetControllerwTarget::Request& req, shadow::SetControllerwTarget::Response& resp)
-{   
-  
-  /*ROS_INFO("Got: v=%d, s=%d, P=%d, I=%d, D=%d",(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
-    (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);*/
-  shadow_mutex_.lock();
-  //shadowHexSetController(&shadow_->dev,(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
-  //		 (char)-1, (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
-  shadowAsciiSetController(&shadow_->dev,(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
-  		 (char)req.Controller_target, (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
-  shadow_mutex_.unlock();
-  ROS_INFO("SHADOW: Setting controller values for valve %d using sensor %d: P=%d, I=%d, D=%d",
-	   (unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
-	   (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
 
-  //shadowHexPulseValves(&shadow_->dev,p_time_ms);
 
-  return true;
-}
-  
 bool ShadowNode::setTargets(shadow::SetTargets::Request& req, shadow::SetTargets::Response& resp)
 {
   // TODO: check why this function makes the hardware "hang"
@@ -342,29 +327,27 @@ bool ShadowNode::getStatus(shadow::GetStatus::Request& req, shadow::GetStatus::R
 
   return true;
 }
+*/
 
-
-bool ShadowNode::setPublishing(shadow::StartPublishing::Request& req, shadow::StartPublishing::Response& resp)
+bool LabjackNode::setPublishing(shadow::StartPublishing::Request& req, shadow::StartPublishing::Response& resp) //startpublishing is a srv
 {
-  if(req.start)
+  if(req.start) //start from srv file
     {
-      ROS_INFO("SPCU is now publishing sensor data");
+      ROS_INFO("Labjack is now publishing sensor data");
       publishing_ = true;
       resp.state = true;
-      //this->pub->setPublishing(true);    
     }
   else
     {
-      ROS_INFO("SPCU has stopped publishing");
+      ROS_INFO("Labjack has stopped publishing");
       publishing_ = false;
       resp.state = false;
-      //this->pub->setPublishing(false);
-    }
+     }
   //this->pub->cyberglove_pub.shutdown();
   return true;
 }
 
-bool  ShadowNode::isPublishing()
+bool   LabjackNode::isPublishing()
 {
   if (publishing_)
     {
@@ -372,16 +355,14 @@ bool  ShadowNode::isPublishing()
     }
   else
     {
-      //ros::spinOnce();
-      //publish_rate_.sleep();
       return false;
     }
 }
 
-void ShadowNode::publish()
+void LabjackNode::publish()
 {
  
-  int i;
+  /*int i;
   unsigned short  sensor_val[8];
   shadow_mutex_.lock();
   // Read the sensor values
@@ -401,54 +382,26 @@ void ShadowNode::publish()
   //publish the msgs
   shadow_pub_.publish(sensor_msg_);
   target_pub_.publish(target_msg_);
-
+  */
 
 }
 
 
 
-bool ShadowNode::spin()
+bool LabjackNode::spin()
 {
   //unsigned short  sensor_val[8];
   //ros::Rate r(10); // 10 ms or 100 Hz ??
 
   while (node_.ok())
     {
-      if (publishing_)
-	publish();
-      /*{
+      if (publishing_) //If publishing, publish 
+	{
 	  publish();
 	}
-      else
-	{
-	  ros::spinOnce();
-	  //publish_rate_.sleep();
-	}*/
-      ros::spinOnce();
-      publish_rate_.sleep();
+      ros::spinOnce(); //Needed for callbacks
+      publish_rate_.sleep(); //
     }
   return true;
 }
 
-
-/*int main(int argc, char **argv)
-{
-
-  ros::init(argc, argv, "shadow");
-
-  if (argc == 2)
-    {
-      std::string shadow_dev = argv[1];  
-      ShadowNode s(shadow_dev);
-      ROS_INFO("ShadowNode created");
-      s.spin();
-    }
-  else
-    {
-      ShadowNode s;
-      ROS_INFO("ShadowNode created");
-      s.spin();
-    }
-
-  return 0;
-  }*/

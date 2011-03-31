@@ -2,7 +2,7 @@
  *
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2011, Alexander Skoglund, Karolinska Institute
+ *  Copyright (c) 2010, Alexander Skoglund, Karolinska Institute
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,9 @@
 #ifndef LABJACK_NODE
 #define LABJACK_NODE
 
+
+#include "u6.h"
+
 /*
 //#include <vector>
 #include <sstream>
@@ -51,7 +54,7 @@
 #include <shadow_commands.h>
 #include <shadow_io.h>
 */
-#include <shadow_base.h>
+//#include <shadow_base.h>
 
 #include <std_msgs/String.h>
 #include <ros/ros.h>
@@ -59,7 +62,7 @@
 
 
 // messages
-#include <shadow/ShadowSensors.h>
+/*#include <shadow/ShadowSensors.h>
 #include <shadow/Valves.h>
 #include <shadow/ShadowTargets.h>
 
@@ -71,30 +74,29 @@
 #include <shadow/SetTargets.h>
 #include <shadow/DisableController.h>
 #include <shadow/PulseValves.h>
-#include <shadow/SetValves.h>
-#include <shadow/StartPublishing.h>
+#include <shadow/SetValves.h>  */
+
+#include <shadow/StartPublishing.h> //StartPublishing is a service, .h is generated
 
 
 
-class ShadowNode
+class LabjackNode
 {
- private:
+ private: //Only class can operate below
 
-  ros::NodeHandle node_;
-  boost::mutex shadow_mutex_ ;
-  shadow_spcu_p shadow_;
+  ros::NodeHandle node_; //Underscore == class parameters
+  boost::mutex labjack_mutex_ ;
+  //shadow_spcu_p shadow_;
 
   std::string prefix_; // For parameter server
 
-  //ros node handle
-  //ros::NodeHandle n_tilde;
   ros::NodeHandle private_nh_; //("~");
   std::string device;
   
   bool publishing_;
   ros::Rate publish_rate_;
 
-  ros::Publisher shadow_pub_;
+  /*ros::Publisher shadow_pub_;
   ros::Publisher valve_state_pub_;
   ros::Publisher target_pub_;
   ros::Publisher sensor_reading_pub_;
@@ -106,11 +108,11 @@ class ShadowNode
   ros::ServiceServer contoller_srv_;
   ros::ServiceServer contoller_target_srv_;
   ros::ServiceServer disable_contoller_srv_;
-  ros::ServiceServer targets_srv_;
+  ros::ServiceServer targets_srv_;*/
   ros::ServiceServer publishing_srv_;
 
   // SPCU commands
-  bool setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp);
+  /*bool setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp);
   bool pulseValves(shadow::PulseValves::Request& req, shadow::PulseValves::Response& resp);
   bool getSensorReading(shadow::GetSensors::Request& req, shadow::GetSensors::Response& resp);
   bool setController(shadow::SetController::Request& req, shadow::SetController::Response& resp);
@@ -118,29 +120,36 @@ class ShadowNode
   bool setTargets(shadow::SetTargets::Request& req, shadow::SetTargets::Response& resp);
   bool disController(shadow::DisableController::Request& req, shadow::DisableController::Response& resp);
   bool getStatus(shadow::GetStatus::Request& req, shadow::GetStatus::Response& resp);
-
+  */
   bool setPublishing(shadow::StartPublishing::Request &req, shadow::StartPublishing::Response &resp);
-
+  
   // Controller stuff
   /*control_toolbox::Pid pid_controller_;
   ros::Time time_of_last_cycle_;
   ros::ServiceServer controller_srv_;*/
 
   // Interna variables
-  shadow::ShadowSensors sensor_msg_;
+  /*shadow::ShadowSensors sensor_msg_;
   shadow::ShadowTargets target_msg_;
   shadow::Valves valve_states;
 
   int  set_target_[NUM_VALVES];
+  */
+
+  // LabJack 
+  /* HANDLE            h_device_;
+     u6CalibrationInfo cali_info_;*/
+  int               local_ID_;
+  long              error_;
+ 
 
  public:
+  LabjackNode(); //Constructor
+  LabjackNode(std::string dev); //Constuctor with args
+  ~LabjackNode(); //Destructor
+  void init();
 
-  ShadowNode();
-  ShadowNode(std::string dev);
-  ~ShadowNode();
-  void ShadowInit();
-
-  bool spin();  
+  bool spin();
   
   bool getNodeStateOK();
   ros::Rate getPublishRate();

@@ -33,36 +33,55 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *********************************************************************/
-#include "labjack_node.h"
-//#include "shadow_PID.h"
-#include <ros/ros.h>
+
+#ifndef u6class_H_
+#define u6class_H_
 
 
-int main(int argc, char **argv)
-{
+#include "u6.h"
+#include <unistd.h>
+#include <iostream>
+#include <vector>
+#include <string>
+#include <time.h>
+#include <stdio.h>
+#include <fstream>
+#include <math.h>
+#include <sys/time.h>
+#include <iomanip>
 
-  ros::init(argc, argv, "labjack");
-  //ros::Rate sleep_rate;
-  if (argc == 2)
-    {
-      std::string labjack_dev = argv[1];  //Port id string
-      LabjackNode lj(labjack_dev);
-      ROS_INFO("Labjack node created");
-      lj.init();
-      //lj.spin(); //Maybe uncomment
-      
-    }
-  else
-    {
-      LabjackNode lj; //Get port id from ROS parameter server
-      ROS_INFO("Labjack node created");
-      lj.init();
-      lj.spin(); //Loop
-      
-    }
+
+class u6class{
+ protected:
+  static u6class *instance_; // To make callback functions work
+
+ public:
+
+  u6class();
+  ~u6class();
+
+  int Init(void);
+  void close_LJ_device(void);
+  void read_ain(void);
+  void write_aout(void);
+  void read_din(void);
+  void write_dout(void);
+
+
+  //double GetRunTime(void);
+  //double GetRunTime(void);
+  //double get_tstart(void);
+
   
-  return 0;
+ private:
 
-}
+  // LabJack 
+  HANDLE            h_device_;
+  u6CalibrationInfo cali_info_;
+  int local_ID_;
+  long error_;
+
+};
 
 
+#endif
