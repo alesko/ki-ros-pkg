@@ -12,13 +12,10 @@
   <depend package="roscpp"/>
   <depend package="tf"/>
   <depend package="sensor_msgs"/>
-  <depend package="control_toolbox"/>
-  <depend package="eigen"/>
   <depend package="dataglove"/>
   <rosdep name="gtk2"/>
-  <rosdep name="gsl"/>
   <export>
-    <cpp cflags="-I${prefix}/msg/cpp -I${prefix}/srv/cpp -I/usr/include/gsl" lflags="-L${prefix}/lib -lgsl -lgslcblas -lm "/>
+    <cpp cflags="-I${prefix}/msg/cpp -I${prefix}/srv/cpp" lflags="-L${prefix}/lib -lm -llabjackusb "/>
   </export>
 
 </package>
