@@ -2,7 +2,7 @@
  *
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2010, Alexander Skoglund, Karolinska Institute
+ *  Copyright (c) 2011, Alexander Skoglund, Karolinska Institute
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,8 @@
 #define LABJACK_NODE
 
 
-#include "u6.h"
+#include <u6.h>
+//#include <labjackusb.h>
 
 /*
 //#include <vector>
@@ -137,8 +138,8 @@ class LabjackNode
   */
 
   // LabJack 
-  /* HANDLE            h_device_;
-     u6CalibrationInfo cali_info_;*/
+  HANDLE            h_device_;
+  u6CalibrationInfo cali_info_;
   int               local_ID_;
   long              error_;
  

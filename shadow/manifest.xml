@@ -14,8 +14,9 @@
   <depend package="sensor_msgs"/>
   <depend package="dataglove"/>
   <rosdep name="gtk2"/>
+  <rosdep name="labjackusb"/>
   <export>
-    <cpp cflags="-I${prefix}/msg/cpp -I${prefix}/srv/cpp" lflags="-L${prefix}/lib -lm -llabjackusb "/>
+    <cpp cflags="-I${prefix}/msg/cpp -I${prefix}/srv/cpp" lflags="-L${prefix}/lib -lm -L${prefix}/usr/local/lib "/>
   </export>
 
 </package>

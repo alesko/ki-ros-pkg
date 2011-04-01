@@ -30,7 +30,7 @@ rosbuild_gensrv()
 #target_link_libraries(example ${PROJECT_NAME})
 #target_link_libraries(gtk+-2.0)
 rosbuild_add_library(shadow src/libshadow/shadow_base.c src/libshadow/shadow_io.c src/libshadow/shadow_commands.c)
-rosbuild_add_library(labjack src/liblabjack/u6.cpp)
+rosbuild_add_library(labjack src/liblabjack/u6.c include/labjackusb.h)
 
 #rosbuild_add_executable(LJ_node src/LJpub/LJ_pub.cpp src/LJpub/LJ_node.cpp src/U6/u6.c )
 #rosbuild_add_link_flags(LJ_node -llabjackusb)
@@ -41,7 +41,10 @@ rosbuild_add_library(labjack src/liblabjack/u6.cpp)
 rosbuild_add_executable(shadow_node_main src/shadow_node/shadow_node_main.cpp src/shadow_node/shadow_node.cpp)
 target_link_libraries(shadow_node_main shadow)
 rosbuild_add_executable(labjack_node_main src/shadow_node/labjack_node_main.cpp src/shadow_node/labjack_node.cpp)
-target_link_libraries(labjack_node_main shadow labjack)
+
+# Use both the local file and the file installed on the system
+target_link_libraries(labjack_node_main shadow labjack labjackusb) 
+
 #rosbuild_add_executable(glove_finger src/shadow_node/glove_finger.cpp src/shadow_node/shadow_node.cpp src/shadow_node/shadow_PID.cpp)
 #target_link_libraries(glove_finger shadow)
 

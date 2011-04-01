@@ -44,6 +44,10 @@
 
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C"{
+#endif
+
 typedef void * HANDLE;
 typedef unsigned int UINT;
 typedef unsigned char BYTE;
@@ -78,10 +82,6 @@ typedef unsigned char BYTE;
 //Wireless bridge pipes to read/write through
 #define BRIDGE_PIPE_EP1_IN    0x81
 #define BRIDGE_PIPE_EP1_OUT   1
-
-#ifdef __cplusplus
-extern "C"{
-#endif
 
 
 float LJUSB_GetLibraryVersion(void);
