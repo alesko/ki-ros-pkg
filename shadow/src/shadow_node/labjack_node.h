@@ -137,6 +137,8 @@ class LabjackNode
   int  set_target_[NUM_VALVES];
   */
 
+  bool getSensorReading(void);
+
   // LabJack 
   HANDLE            h_device_;
   u6CalibrationInfo cali_info_;

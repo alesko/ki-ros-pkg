@@ -12,9 +12,9 @@
 #include "labjackusb.h"
 //#include "labjack/labjackusb.h"
 
-//##ifdef __cplusplus
-//extern "C" {
-//#endif
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef unsigned char uint8;
 typedef unsigned short uint16;
@@ -555,9 +555,9 @@ long ehFeedback( HANDLE hDevice,
 #define LJ_tmFALLINGEDGES16         13 // 16-bit falling to falling edge measurement
 
 
-//#ifdef __cplusplus
-//}
-//#endif
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif

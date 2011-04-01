@@ -71,8 +71,24 @@
 using namespace ros;
 
 
-LabjackNode::LabjackNode() : private_nh_("~"), publish_rate_(100) //init variabels - ros grej
+LabjackNode::LabjackNode() : private_nh_("~"), publish_rate_(1) //init variabels - ros grej
 {
+
+  //Open first found U6 over USB
+  local_ID_ = -1;
+  if( (h_device_ = openUSBConnection(local_ID_)) == NULL)
+    {
+      ROS_ERROR("Unable to open USB connection\n");
+      exit(0);
+    }
+  
+  //Get calibration information from U6
+  if(getCalibrationInfo(h_device_, &cali_info_) < 0)
+    {
+      ROS_ERROR("Unable to get calibration\n");
+      exit(0);
+    }
+
   /*std::string dev;
   std::string searched_param;
   double publish_freq;
@@ -125,6 +141,16 @@ LabjackNode::LabjackNode(std::string dev) : private_nh_("~"), publish_rate_(100)
  
 }
 
+LabjackNode::~LabjackNode(void)  //Destructor destorys object, ~ needed
+{
+    
+  ROS_INFO("Closing LabJack device.");
+  closeUSBConnection(h_device_);
+  ROS_INFO("LabJack device closed.");
+
+}
+
+
 void LabjackNode::init()
 {
   ROS_INFO("Initializing Labjack");
@@ -176,12 +202,30 @@ void LabjackNode::init()
 
 }
 
-LabjackNode::~LabjackNode() //Destructor destorys object, ~ needed
+bool LabjackNode::getSensorReading(void)
 {
-  ROS_INFO("Closing SPCU" );
-  //shadowClear(shadow_);
-  ROS_INFO("SPCU closed, goodbye" );
 
+  double dblVoltage;
+  if((error_ = eAIN(h_device_, &cali_info_, 0, 15, &dblVoltage, 0, 0, 0, 0, 0, 0)) != 0)
+    {
+      ROS_WARN("Unable to aquire data");
+      exit(0);
+    }       
+  ROS_INFO("Read data %f",dblVoltage);
+  //int i;
+  //unsigned short  sensor_val[8];
+
+  /*shadow_mutex_.lock();
+  // Read the sensor values
+  shadowHexReadSensors(&shadow_->dev,sensor_val);
+  resp.header.stamp = ros::Time::now();    
+  // Send the values
+  for(i=0;i < 8;i++)
+    resp.Sensors[i] = sensor_val[i];
+
+  shadow_mutex_.unlock();
+  */
+  return true;
 }
 
 /*
@@ -399,6 +443,7 @@ bool LabjackNode::spin()
 	{
 	  publish();
 	}
+      getSensorReading();
       ros::spinOnce(); //Needed for callbacks
       publish_rate_.sleep(); //
     }
