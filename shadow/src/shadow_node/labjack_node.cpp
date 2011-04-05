@@ -66,6 +66,7 @@
 #include <shadow/SetValves.h>
 #include <shadow/PulseValves.h>
 */
+#include <shadow/LJSetTargets.h>
 #include <shadow/StartPublishing.h>
 
 using namespace ros;
@@ -155,6 +156,8 @@ void LabjackNode::init()
 {
   ROS_INFO("Initializing Labjack");
   int msg_que_len = 5;    
+  do_state_ = false;
+  last_update_ = -1.0;
 
   /*if (shadowDeviceConnectPort(&shadow_->dev) < 0) 
     {
@@ -194,6 +197,7 @@ void LabjackNode::init()
   contoller_srv_ = private_nh_.advertiseService("enable_controller", &ShadowNode::setController,this);
   contoller_target_srv_ = private_nh_.advertiseService("enable_controller_target", &ShadowNode::setControllerwTarget,this);
   disable_contoller_srv_ = private_nh_.advertiseService("disable_controller", &ShadowNode::disController,this);*/
+  targets_srv_ = private_nh_.advertiseService("set_targets", &LabjackNode::setTargets,this);
   publishing_srv_ = private_nh_.advertiseService("publishing_service", &LabjackNode::setPublishing,this);
 
   publishing_ = false;
@@ -204,7 +208,7 @@ void LabjackNode::init()
 
 bool LabjackNode::getSensorReading(void)
 {
-
+  long s;
   double dblVoltage;
   if((error_ = eAIN(h_device_, &cali_info_, 0, 15, &dblVoltage, 0, 0, 0, 0, 0, 0)) != 0)
     {
@@ -212,6 +216,24 @@ bool LabjackNode::getSensorReading(void)
       exit(0);
     }       
   ROS_INFO("Read data %f",dblVoltage);
+  
+  if ( true == do_state_ )
+   {
+      do_state_ = false;
+      s = 0;
+   }   
+  else
+   {
+      do_state_ = true;
+      s = 1;
+   }   
+
+  if( (error_ = eDO(h_device_,0,s)) != 0 )
+   {
+      ROS_WARN("Unable to output data");
+      exit(0);
+   }       
+ 
   //int i;
   //unsigned short  sensor_val[8];
 
@@ -299,31 +321,35 @@ bool ShadowNode::setController(shadow::SetController::Request& req, shadow::SetC
   return true;
 }
 
+*/
 
-
-bool ShadowNode::setTargets(shadow::SetTargets::Request& req, shadow::SetTargets::Response& resp)
+bool LabjackNode::setTargets(shadow::LJSetTargets::Request& req, shadow::LJSetTargets::Response& resp)
 {
-  // TODO: check why this function makes the hardware "hang"
-  // Impossible to retrive the status after the target is set
-  
-  //int  set_target[NUM_VALVES];
+  double upper_limit = 100; // This value is a wild guess!!!! Implement a proper value
   int i;
-  for(i=0; i < NUM_VALVES; i++)
-    set_target_[i]= req.target[i];
-  for(i=0; i < NUM_VALVES; i++)
-    ROS_INFO("SHADOW: Setting targets:[%d]=%d",i,set_target_[i]);
- 
-  ROS_INFO("SHADOW: Setting targets");
 
-  shadow_mutex_.lock();
-  //shadowHexSetTargets(&shadow_->dev,set_target);
-  shadowAsciiSetTargets(&shadow_->dev,set_target_);
-  shadow_mutex_.unlock();
-
+  // Loop though the vales
+  for(i=0; i < NUM_VALVES; i++)
+    {
+      // If action is not zero or too large
+      if( (req.targets[i]> 0) && fabs(req.targets[i])< upper_limit )
+	{
+	  target_values_[i]= req.targets[i];
+	  ROS_INFO("LabJack node: Setting targets:[%d]=%f",i,target_values_[i]);
+          resp.targets[i] = target_values_[i];
+	}
+      else
+	{
+	  // Too large set value!!!
+	  if(req.targets[i] != 0)
+	    ROS_WARN("LabJack node: requested target for valve %d: %f is too large", i,req.targets);
+	}
+    }
 
   return true;
 }
 
+/*
 bool ShadowNode::disController(shadow::DisableController::Request& req, shadow::DisableController::Response& resp)
 {   
  
@@ -432,6 +458,44 @@ void LabjackNode::publish()
 
 
 
+bool LabjackNode::updateValves()
+{
+  ROS_INFO("updating contoller");
+  // Maybe ros::WallTime and/or ros::WallDuration are better to use in this case?!
+  ros::Time t = ros::Time::now();
+  if (last_update_ > 0)
+    {
+      ros::Duration dt = t - last_update_;
+      last_update_ = t;
+
+      double gain = 10;
+      double desired_value[NUM_VALVES];
+      double current_value[NUM_VALVES];
+      double effort[NUM_VALVES];
+      
+      int i;
+      for(i=0; i < NUM_VALVES; i++)
+	{
+	  desired_value[i] = target_values_[i];
+	  // Check the values' states here
+	  if((error_ = eAIN(h_device_, &cali_info_, 0, 15, &current_value[i], 0, 0, 0, 0, 0, 0)) != 0)
+	    {
+	      ROS_WARN("Unable to aquire data from valve %d",i);
+	    }       
+	  // Insert PID controller here, for now compute error:
+	  
+	  effort[i] = gain * (current_value[i] - desired_value[i]);
+	  ROS_INFO("Effort[%d]: %f",i,effort[i]);
+	}
+
+    }
+  else
+    last_update_ = t;
+
+  return true;
+    
+}
+
 bool LabjackNode::spin()
 {
   //unsigned short  sensor_val[8];
@@ -443,7 +507,8 @@ bool LabjackNode::spin()
 	{
 	  publish();
 	}
-      getSensorReading();
+      //getSensorReading();
+      updateValves();
       ros::spinOnce(); //Needed for callbacks
       publish_rate_.sleep(); //
     }

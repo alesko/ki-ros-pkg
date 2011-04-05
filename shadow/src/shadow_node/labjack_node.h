@@ -72,14 +72,14 @@
 #include <shadow/SetControllerwTarget.h>
 #include <shadow/GetStatus.h>
 #include <shadow/GetSensors.h>
-#include <shadow/SetTargets.h>
+
 #include <shadow/DisableController.h>
 #include <shadow/PulseValves.h>
 #include <shadow/SetValves.h>  */
 
+#include <shadow/LJSetTargets.h>
 #include <shadow/StartPublishing.h> //StartPublishing is a service, .h is generated
-
-
+#define NUM_VALVES 20
 
 class LabjackNode
 {
@@ -96,7 +96,8 @@ class LabjackNode
   
   bool publishing_;
   ros::Rate publish_rate_;
-
+  int number_of_valves_;
+  ros::Time last_update_;
   /*ros::Publisher shadow_pub_;
   ros::Publisher valve_state_pub_;
   ros::Publisher target_pub_;
@@ -105,23 +106,23 @@ class LabjackNode
   ros::ServiceServer sensor_reading_srv_;  
   ros::ServiceServer system_status_srv_;
   ros::ServiceServer set_valves_srv_;
-  ros::ServiceServer pulse_valves_srv_;
-  ros::ServiceServer contoller_srv_;
+  ros::ServiceServer pulse_valves_srv_;*/
+  //ros::ServiceServer contoller_srv_;
   ros::ServiceServer contoller_target_srv_;
   ros::ServiceServer disable_contoller_srv_;
-  ros::ServiceServer targets_srv_;*/
+  ros::ServiceServer targets_srv_;
   ros::ServiceServer publishing_srv_;
 
   // SPCU commands
   /*bool setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp);
   bool pulseValves(shadow::PulseValves::Request& req, shadow::PulseValves::Response& resp);
-  bool getSensorReading(shadow::GetSensors::Request& req, shadow::GetSensors::Response& resp);
-  bool setController(shadow::SetController::Request& req, shadow::SetController::Response& resp);
-  bool setControllerwTarget(shadow::SetControllerwTarget::Request& req, shadow::SetControllerwTarget::Response& resp);
-  bool setTargets(shadow::SetTargets::Request& req, shadow::SetTargets::Response& resp);
-  bool disController(shadow::DisableController::Request& req, shadow::DisableController::Response& resp);
-  bool getStatus(shadow::GetStatus::Request& req, shadow::GetStatus::Response& resp);
-  */
+  bool getSensorReading(shadow::GetSensors::Request& req, shadow::GetSensors::Response& resp);*/
+  //bool setController(shadow::SetController::Request& req, shadow::SetController::Response& resp);
+  //bool setControllerwTarget(shadow::SetControllerwTarget::Request& req, shadow::SetControllerwTarget::Response& resp);
+  bool setTargets(shadow::LJSetTargets::Request& req, shadow::LJSetTargets::Response& resp);
+  //bool disController(shadow::DisableController::Request& req, shadow::DisableController::Response& resp);
+  //bool getStatus(shadow::GetStatus::Request& req, shadow::GetStatus::Response& resp);
+  
   bool setPublishing(shadow::StartPublishing::Request &req, shadow::StartPublishing::Response &resp);
   
   // Controller stuff
@@ -136,15 +137,16 @@ class LabjackNode
 
   int  set_target_[NUM_VALVES];
   */
-
+  double target_values_[NUM_VALVES];
   bool getSensorReading(void);
+  bool updateValves();
 
   // LabJack 
   HANDLE            h_device_;
   u6CalibrationInfo cali_info_;
   int               local_ID_;
   long              error_;
- 
+  bool do_state_;
 
  public:
   LabjackNode(); //Constructor
