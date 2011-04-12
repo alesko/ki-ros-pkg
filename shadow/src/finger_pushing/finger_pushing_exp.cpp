@@ -133,6 +133,7 @@ int main(int argc, char **argv)
     }
   else
     {
+      ROS_WARN("/shadow/adaptive_baseline not found!");
       if (finger_pushing.nh_.hasParam("/shadow/baseline_force"))
 	{
 	  finger_pushing.nh_.getParam("/shadow/baseline_force", baseline_force); 
@@ -267,6 +268,7 @@ int main(int argc, char **argv)
       else
 	{
 	  baseline_force = (int)finger_pushing.record_sensor_data(FLEXIFORCE_AIRMUSCLE, 100);
+	  data_file << "Baseline force updated: " << "\t" << baseline_force << std::endl;
 	  //current_baseline=(int)baseline_force;
 	}
     }
