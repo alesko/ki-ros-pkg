@@ -110,7 +110,7 @@ int main(int argc, char **argv)
     }
   if (finger_pushing.nh_.hasParam("/shadow/adaptive_baseline"))
     {
-      finger_pushing.nh_.getParam("/shadow/adaptive_baseline ", adaptive_baseline);
+      finger_pushing.nh_.getParam("/shadow/adaptive_baseline", adaptive_baseline);
       if (true == adaptive_baseline)
 	{
 	  ROS_INFO("/shadow/adaptive_baseline will be used");
