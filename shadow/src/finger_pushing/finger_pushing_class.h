@@ -88,7 +88,7 @@ public:
   bool set_target(int controller, int target, int tol);
   bool disable_controller(int controller);
   void interprete_case(unsigned int test_case, int& type, double& scale);
-  bool measure_baseline(int sensor,int current_baseline);
+  bool measure_baseline(int sensor,int current_baseline, double tol);
 
 };
 

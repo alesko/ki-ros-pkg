@@ -188,8 +188,60 @@ int FingerPushing::record_max_sensor_data_time(int sensor,float duration)
   
 }
 
+
 //bool measure_baseline(int sensor, int current_baseline)
-bool FingerPushing::measure_baseline(int sensor, int current_baseline)
+bool FingerPushing::measure_baseline(int sensor, int current_baseline, double tol)
+{
+  double start_time = ros::Time::now().toSec();
+  double duration = 1.0;
+  bool run = true;
+  double running_time; 
+  double sum = 0;
+  double mean;
+  int i=0;
+  if( tol > 1.0 )
+    {
+      ROS_ERROR("Tolerance parameter in function measure_baseline is too high!");
+      return false;
+    }
+  if( tol < 0.0 )
+    {
+      ROS_ERROR("Tolerance parameter in function measure_baseline is too low!");
+      return false;
+    }
+
+  while( run )
+    {
+      loop_rate_.sleep();
+      ros::spinOnce();
+      sum = sum + (double) g_sensordata[sensor];
+      i++;
+
+      running_time = ros::Time::now().toSec() - start_time;
+      if( running_time > duration )
+	run = false;
+
+    }
+
+  mean = sum/i;
+  
+  if( mean > ( (1.0 + tol) * (double)current_baseline) )
+    {
+      ROS_WARN("Baseline seems to have increased");
+      return false;
+    }
+  if( mean < ( (1.0-tol) * (double)current_baseline) )
+    {
+      ROS_WARN("Baseline seems to have decreased");
+      return false;
+    }
+
+  return true;
+  
+}
+/*
+//bool measure_baseline(int sensor, int current_baseline)
+double FingerPushing::measure_baseline(int sensor, int current_baseline)
 {
   double start_time = ros::Time::now().toSec();
   double duration = 1.0;
@@ -214,20 +266,22 @@ bool FingerPushing::measure_baseline(int sensor, int current_baseline)
 
   mean = sum/i;
   
-  if( mean > (1.1 * (double)current_baseline) )
+  
+  if( mean > ( (1.0 + tol) * (double)current_baseline) )
     {
       ROS_WARN("Baseline seems to have increased");
       return false;
     }
-  if( mean < (0.9 * (double)current_baseline) )
+  if( mean < ( (1.0-tol) * (double)current_baseline) )
     {
       ROS_WARN("Baseline seems to have decreased, mean %");
       return false;
     }
-
-  return true;
+  
+  return mean;
   
 }
+*/
 
 bool FingerPushing::set_controller(int controller, int sensor, int p, int i, int d)
 {

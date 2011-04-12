@@ -70,6 +70,9 @@ int main(int argc, char **argv)
   double exp_duration=0.1;
   int tol = 50;
   int playback_force;
+  bool adaptive_baseline;
+  double baseline_tolerance;
+  //double baseline_tolerance;
 
   // Init ROS
   ros::init(argc, argv, "hiske_finger_push");
@@ -105,18 +108,62 @@ int main(int argc, char **argv)
       ROS_ERROR("Run the finger_pushing_ini program!");
       exit(0);
     }
-
-  if (finger_pushing.nh_.hasParam("/shadow/baseline_force"))
+  if (finger_pushing.nh_.hasParam("/shadow/adaptive_baseline"))
     {
-      finger_pushing.nh_.getParam("/shadow/baseline_force", baseline_force); 
-      ROS_INFO("/shadow/baseline_force %f", baseline_force );
-      data_file << "/shadow/baseline_force " << baseline_force << std::endl;
+      finger_pushing.nh_.getParam("/shadow/adaptive_baseline ", adaptive_baseline);
+      if (true == adaptive_baseline)
+	{
+	  ROS_INFO("/shadow/adaptive_baseline will be used");
+	  data_file << "/shadow/adaptive_baseline true" << std::endl;
+	  if (finger_pushing.nh_.hasParam("/shadow/baseline_force"))
+	    {
+	      finger_pushing.nh_.getParam("/shadow/baseline_force", baseline_force); 
+	      ROS_INFO("Using /shadow/baseline_force %f as initial baseline force", baseline_force );
+	    }
+	  else
+	    {
+	      // New measure!!!
+	    }
+	}
+      else
+	{
+	  ROS_INFO("/shadow/adaptive_baseline will NOT be used");
+	  data_file << "/shadow/adaptive_baseline false" << std::endl;
+	}
     }
   else
     {
-      ROS_ERROR("/shadow/baseline_force does not exits!");
-      ROS_ERROR("Run the finger_pushing_ini program!");
-      exit(0);
+      if (finger_pushing.nh_.hasParam("/shadow/baseline_force"))
+	{
+	  finger_pushing.nh_.getParam("/shadow/baseline_force", baseline_force); 
+	  ROS_INFO("/shadow/baseline_force %f", baseline_force );
+	  data_file << "/shadow/baseline_force " << baseline_force << std::endl;
+
+	  if (finger_pushing.nh_.hasParam("/shadow/baseline_tolerance"))
+	    {
+	      finger_pushing.nh_.getParam("/shadow/baseline_tolerance", baseline_tolerance);
+	      if( (baseline_tolerance > 1.0)||(baseline_tolerance < 0.0) )
+		{
+		  ROS_ERROR("/shadow/baseline_tolerance is out of bound");
+		}
+	      ROS_INFO("/shadow/baseline_tolerance %f", baseline_tolerance );
+	      data_file << "/shadow/baseline_tolerance " << baseline_tolerance << std::endl;
+	      
+	    }
+	  else
+	    {
+	      ROS_ERROR("Neither /shadow/baseline_force nor /shadow/adaptive_baseline does not exits!");
+	      ROS_ERROR("Run the finger_pushing_ini program and/or set the /shadow/adaptive_baseline parameter!");
+	     
+	    }
+
+	}
+      else
+	{
+	  ROS_ERROR("Neither /shadow/baseline_force nor /shadow/adaptive_baseline does not exits!");
+	  ROS_ERROR("Run the finger_pushing_ini program and/or set the /shadow/adaptive_baseline parameter!");
+	  exit(0);
+	}
     }
   if (finger_pushing.nh_.hasParam("/shadow/max_push_force"))
     {
@@ -177,7 +224,7 @@ int main(int argc, char **argv)
 	 
 	  playback_force = (int) (scale * (force_max-baseline_force)  + baseline_force);
 	  ROS_INFO("playback_force = scale * (force_max-baseline_force) + baseline_force: %d",playback_force);
-	  ROS_INFO("Activation PAM!");
+	  ROS_INFO("Activation of PAM!");
 	  
 	  // Start the PID controllers on SPCU
 	  finger_pushing.set_controller(AIRMUSCLE_FILL_VALVE, FLEXIFORCE_AIRMUSCLE, 4, 2, 0);
@@ -188,7 +235,7 @@ int main(int argc, char **argv)
 	  finger_pushing.wait_button_push(PUSH_BUTTON, 2.0);
 	  
 	  // Disable the controllers
-	  ROS_INFO("Dectivation PAM...");
+	  ROS_INFO("Dectivating PAM...");
 	  finger_pushing.disable_controller(AIRMUSCLE_FILL_VALVE);
 	  finger_pushing.disable_controller(AIRMUSCLE_EMPTY_VALVE);
 	  finger_pushing.empty_pam();
@@ -196,11 +243,35 @@ int main(int argc, char **argv)
 	  break;
 	}
       test_case_code.pop_back(); // Remove this test case
-      if( !finger_pushing.measure_baseline(FLEXIFORCE_AIRMUSCLE,baseline_force) )
-	ROS_WARN("Baseline seems to have changed");
+      /*baseline_force = finger_pushing.measure_baseline(FLEXIFORCE_AIRMUSCLE,baseline_force);
+      if (false == adaptive_baseline)
+	{	  	  
+	  if( baseline_force > ( (1.0 + baseline_tolerance) * (double)current_baseline) )
+	    {
+	      ROS_WARN("Baseline seems to have increased");
+	      return false;
+	    }
+	  if( baseline_force < ( (1.0-baseline_tolerance) * (double)current_baseline) )
+	    {
+	      ROS_WARN("Baseline seems to have decreased, mean %");
+	      return false;
+	    }
+	}
+      else
+      {*/
+      if (false == adaptive_baseline)
+	{
+	  if(!finger_pushing.measure_baseline(FLEXIFORCE_AIRMUSCLE,baseline_force, baseline_tolerance))
+	     ROS_WARN("Baseline seems to have changed");	     
+	}
+      else
+	{
+	  baseline_force = (int)finger_pushing.record_sensor_data(FLEXIFORCE_AIRMUSCLE, 100);
+	  //current_baseline=(int)baseline_force;
+	}
     }
-    data_file.close();
-
+  data_file.close();
+  
 }
 
 

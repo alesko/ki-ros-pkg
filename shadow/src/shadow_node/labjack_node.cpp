@@ -2,7 +2,7 @@
  *
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2010, Alexander Skoglund, Karolinska Institute
+ *  Copyright (c) 2011, Alexander Skoglund, Karolinska Institute
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -65,16 +65,28 @@
 #include <shadow/SetTargets.h>
 #include <shadow/SetValves.h>
 #include <shadow/PulseValves.h>
-*/
+
 #include <shadow/LJSetTargets.h>
 #include <shadow/StartPublishing.h>
-
+*/
 using namespace ros;
 
+//const uint8 NumChannels = 5;        //For this example to work proper, SamplesPerPacket needs
+                                    //to be a multiple of NumChannels.
+//const uint8 SamplesPerPacket = 25;  //Needs to be 25 to read multiple StreamData responses
+                                    //in one large packet, otherwise can be any value between
+                                    //1-25 for 1 StreamData response per packet.
 
-LabjackNode::LabjackNode() : private_nh_("~"), publish_rate_(1) //init variabels - ros grej
+LabjackNode::LabjackNode() : private_nh_("~"), publish_rate_(100) //init variabels - ros grej
 {
+  NumChannels_ = 5;        //For this example to work proper, SamplesPerPacket needs
+                                    //to be a multiple of NumChannels.
+  SamplesPerPacket_ = 25;  //Needs to be 25 to read multiple StreamData responses
+                                    //in one large packet, otherwise can be any value between
+                                    //1-25 for 1 StreamData response per packet.
 
+  rate_ = (int)(1.0/(publish_rate_.expectedCycleTime() ).toSec()+0.5);
+  ROS_INFO("Rate is %d",rate_);
   //Open first found U6 over USB
   local_ID_ = -1;
   if( (h_device_ = openUSBConnection(local_ID_)) == NULL)
@@ -89,21 +101,35 @@ LabjackNode::LabjackNode() : private_nh_("~"), publish_rate_(1) //init variabels
       ROS_ERROR("Unable to get calibration\n");
       exit(0);
     }
+  //Getting calibration information from LJTDAC
+  if(getTdacCalibrationInfo(h_device_, &cali_dac_info_, 2) < 0)  
+    {
+      ROS_ERROR("Unable to get DAC calibration\n");
+      exit(0);
+    }
 
-  /*std::string dev;
-  std::string searched_param;
-  double publish_freq;
+  // Configure LabJack's IO
+  ConfigIO();
+  
+  // Stop streming if LJ was stopped wrongly
+  StreamStop();
 
-  ROS_INFO("Creating a PAM node");
+  counter_ = 0;
+  //std::string dev;
+  //std::string searched_param;
+  //double publish_freq;
+
+  //ROS_INFO("Creating a PAM node");
     
   //shadow_ = shadowInitialize();
 
   // Find the Shadow prefix
-  private_nh_.searchParam("pam_prefix", searched_param);
-  private_nh_.param(searched_param, prefix_, std::string());
+  //private_nh_.searchParam("pam_prefix", searched_param);
+  //private_nh_.param(searched_param, prefix_, std::string());
 
   // set path to SPCU
-  std::string full_topic = prefix_ + "/path_to_labjack";  // Necessary??
+  //std::string full_topic = prefix_ + "/path_to_labjack";  // Necessary??
+  /*std::string full_topic = prefix_ + "/path_to_labjack";  // Necessary??
   if (private_nh_.getParam(full_topic, dev))
     {
       ROS_INFO("Path to SPCU is: %s", dev.c_str());
@@ -113,14 +139,15 @@ LabjackNode::LabjackNode() : private_nh_("~"), publish_rate_(1) //init variabels
       ROS_ERROR("Unable to determine path to SPCU, full_topic=%s", full_topic.c_str());
       return;
     }
-
-  strcpy(shadow_->dev.ttyport, dev.c_str());
+  */
+  //strcpy(shadow_->dev.ttyport, dev.c_str());
 
   //private_nh_.searchParam("/spcu_publish_frequency", searched_param);
   //private_nh_.param(searched_param, prefix_, std::string());
 
 
   // set publish frequency from parameter server
+  /*
   full_topic = prefix_ + "/spcu_publish_frequency";    
 
   if (private_nh_.getParam(full_topic, publish_freq))
@@ -157,8 +184,9 @@ void LabjackNode::init()
   ROS_INFO("Initializing Labjack");
   int msg_que_len = 5;    
   do_state_ = false;
-  last_update_ = -1.0;
-
+  //last_update_ = -1.0;
+  first_update_ = true;
+  ain_reading_pub_ = private_nh_.advertise<shadow::LJSensors>("/ain_msg",msg_que_len );
   /*if (shadowDeviceConnectPort(&shadow_->dev) < 0) 
     {
       ROS_FATAL("Unable to connect shadow at %s\n", shadow_->dev.ttyport);
@@ -197,6 +225,7 @@ void LabjackNode::init()
   contoller_srv_ = private_nh_.advertiseService("enable_controller", &ShadowNode::setController,this);
   contoller_target_srv_ = private_nh_.advertiseService("enable_controller_target", &ShadowNode::setControllerwTarget,this);
   disable_contoller_srv_ = private_nh_.advertiseService("disable_controller", &ShadowNode::disController,this);*/
+  pulse_valves_srv_ = private_nh_.advertiseService("pulse_valves", &LabjackNode::pulseValves,this);
   targets_srv_ = private_nh_.advertiseService("set_targets", &LabjackNode::setTargets,this);
   publishing_srv_ = private_nh_.advertiseService("publishing_service", &LabjackNode::setPublishing,this);
 
@@ -210,29 +239,17 @@ bool LabjackNode::getSensorReading(void)
 {
   long s;
   double dblVoltage;
-  if((error_ = eAIN(h_device_, &cali_info_, 0, 15, &dblVoltage, 0, 0, 0, 0, 0, 0)) != 0)
+  for(int i=0; i <14; i++)
     {
-      ROS_WARN("Unable to aquire data");
-      exit(0);
-    }       
-  ROS_INFO("Read data %f",dblVoltage);
+      if((error_ = eAIN(h_device_, &cali_info_, i, 15, &dblVoltage, 0, 0, 0, 0, 0, 0)) != 0)
+	{
+	  ROS_WARN("Unable to aquire data");
+	  exit(0);
+	}       
+      ain_[i] = dblVoltage;
+    }
+  //ROS_INFO("Read data %f",dblVoltage);
   
-  if ( true == do_state_ )
-   {
-      do_state_ = false;
-      s = 0;
-   }   
-  else
-   {
-      do_state_ = true;
-      s = 1;
-   }   
-
-  if( (error_ = eDO(h_device_,0,s)) != 0 )
-   {
-      ROS_WARN("Unable to output data");
-      exit(0);
-   }       
  
   //int i;
   //unsigned short  sensor_val[8];
@@ -247,81 +264,32 @@ bool LabjackNode::getSensorReading(void)
 
   shadow_mutex_.unlock();
   */
-  return true;
-}
 
-/*
-bool ShadowNode::setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp)
+  return true;
+
+ }
+
+
+bool LabjackNode::pulseValves(shadow::LJPulseValves::Request& req, shadow::LJPulseValves::Response& resp)
 {   
-  int set_valve[NUM_VALVES]={0,0,0,0,0,0,0,0};
-  //if( req.valve0_state > 
-  set_valve[0]=req.valve0_state; 
-  set_valve[1]=req.valve1_state;
-  set_valve[2]=req.valve2_state; 
-  set_valve[3]=req.valve3_state;
-  set_valve[4]=req.valve4_state; 
-  set_valve[5]=req.valve5_state;
-  set_valve[6]=req.valve6_state; 
-  set_valve[7]=req.valve7_state;
-
-  shadowHexSetValves(&shadow_->dev, set_valve);
-  return true;
-
-}
-
-bool ShadowNode::pulseValves(shadow::PulseValves::Request& req, shadow::PulseValves::Response& resp)
-{   
-  //  int i;
-  int p_time_ms[NUM_VALVES]={req.valve0_time_ms, req.valve1_time_ms,
-			     req.valve2_time_ms, req.valve3_time_ms,
-			     req.valve4_time_ms, req.valve5_time_ms,
-			     req.valve6_time_ms, req.valve7_time_ms};  
-  //ROS_INFO("SHADOW: Pulsing values");
-  shadowHexPulseValves(&shadow_->dev,p_time_ms);
-  return true;
-}
-
-bool ShadowNode::getSensorReading(shadow::GetSensors::Request& req, shadow::GetSensors::Response& resp)
-{
   int i;
-  unsigned short  sensor_val[8];
-
-  shadow_mutex_.lock();
-  // Read the sensor values
-  shadowHexReadSensors(&shadow_->dev,sensor_val);
-  resp.header.stamp = ros::Time::now();    
-  // Send the values
-  for(i=0;i < 8;i++)
-    resp.Sensors[i] = sensor_val[i];
-
-  shadow_mutex_.unlock();
-   
-  return true;
-}
-
-
-
-bool ShadowNode::setController(shadow::SetController::Request& req, shadow::SetController::Response& resp)
-{   
   
-  //ROS_INFO("Got: v=%d, s=%d, P=%d, I=%d, D=%d",(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
-  //  (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
-  shadow_mutex_.lock();
-  //shadowHexSetController(&shadow_->dev,(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
-  //		 (char)-1, (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
-  shadowAsciiSetController(&shadow_->dev,(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
-  		 (char)-1, (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
-  shadow_mutex_.unlock();
-  ROS_INFO("SHADOW: Setting controller values for valve %d using sensor %d: P=%d, I=%d, D=%d",
-	   (unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
-	   (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
-
-  //shadowHexPulseValves(&shadow_->dev,p_time_ms);
+  for(i=0; i < NUM_VALVES; i++)
+    {
+      // Do proper round
+      high_time_[i] = (int) (req.valve_p[i] * rate_ + 0.5); //(1.0/((publish_rate_.expectedCycleTime() ).toSec() ) ) +0.5); 
+      //(publish_rate_ * req.valve_p[i]);
+      if( req.valve_p[i] < 0.05)
+	high_time_[i] = 0; //(int) (0.05 * (1.0/((publish_rate_.expectedCycleTime() ).toSec() ) )+0.5); //(publish_rate_ * 0.05);
+      if( req.valve_p[i] > 1.00)
+	high_time_[i] = rate_;//(int) (1.0/((publish_rate_.expectedCycleTime() ).toSec() ) +0.5);
+      resp.valve_p[i] = (double)high_time_[i]/(double)(rate_); //(publish_rate_.expectedCycleTime() ).toSec() ) ;
+    }
+  ROS_INFO("hugh_time_[0]=%d",high_time_[0]);
 
   return true;
 }
 
-*/
 
 bool LabjackNode::setTargets(shadow::LJSetTargets::Request& req, shadow::LJSetTargets::Response& resp)
 {
@@ -342,12 +310,873 @@ bool LabjackNode::setTargets(shadow::LJSetTargets::Request& req, shadow::LJSetTa
 	{
 	  // Too large set value!!!
 	  if(req.targets[i] != 0)
-	    ROS_WARN("LabJack node: requested target for valve %d: %f is too large", i,req.targets);
+	    ROS_WARN("LabJack node: requested target for valve %d: %f is too large", i,req.targets[i]);
 	}
     }
 
   return true;
 }
+
+
+bool LabjackNode::setPublishing(shadow::StartPublishing::Request& req, shadow::StartPublishing::Response& resp) //startpublishing is a srv
+{
+  if(req.start) //start from srv file
+    {
+      if( StreamStart() != 0)
+	ROS_WARN("LabJack data streamin won't start!");
+
+      ROS_INFO("Labjack is now publishing sensor data");
+      publishing_ = true;
+      resp.state = true;
+    }
+  else
+    {
+      StreamStop();
+      ROS_INFO("Labjack has stopped publishing");
+      publishing_ = false;
+      resp.state = false;
+     }
+  //this->pub->cyberglove_pub.shutdown();
+  return true;
+}
+
+bool   LabjackNode::isPublishing()
+{
+  if (publishing_)
+    {
+      return true;
+    }
+  else
+    {
+      return false;
+    }
+}
+
+void LabjackNode::publish()
+{
+  StreamData();
+  ain_msg_.header.stamp = ros::Time::now();    
+   // Put the values into a message
+  for(int i=0; i < 14; i++)
+    ain_msg_.ain[i] = ain_[i];
+  ain_reading_pub_.publish(ain_msg_);
+  //ain_reading_pub_.publush();
+
+  /*int i;
+  unsigned short  sensor_val[8];
+  shadow_mutex_.lock();
+  // Read the sensor values
+  shadowHexReadSensors(&shadow_->dev,sensor_val);
+  shadow_mutex_.unlock();
+  sensor_msg_.header.stamp = ros::Time::now();    
+  target_msg_.header.stamp = ros::Time::now();    
+  // Put the values into a message
+  for(i=0; i < NUM_VALVES; i++)
+    sensor_msg_.sensor[i] = sensor_val[i];
+
+  // Put the values into a message
+  for(i=0; i < NUM_VALVES; i++)
+    target_msg_.target[i] = set_target_[i];
+
+   
+  //publish the msgs
+  shadow_pub_.publish(sensor_msg_);
+  target_pub_.publish(target_msg_);
+  */
+  
+
+}
+
+int LabjackNode::tdac_example() //HANDLE hDevice, u6TdacCalibrationInfo *caliInfo)
+{
+
+    int err;
+    uint8 options, speedAdjust, sdaPinNum, sclPinNum, address, numBytesToSend, numBytesToReceive, errorcode;
+    uint16 binaryVoltage;
+    uint8 bytesCommand[5];
+    uint8 bytesResponse[64];
+    uint8 ackArray[4];
+    int i;
+
+    err = 0;
+
+    //Setting up parts I2C command that will remain the same throughout this example
+    options = 0;             //I2COptions : 0
+    speedAdjust = 0;         //SpeedAdjust : 0 (for max communication speed of about 130 kHz)
+    sdaPinNum = 3;           //SDAPinNum : FIO3 connected to pin DIOB
+    sclPinNum = 2;           //SCLPinNum : FIO2 connected to pin DIOA
+
+
+    /* Set DACA to 0 or 5 volts. */
+    if( do_state_ == true)
+      {
+	do_state_ = false;
+	getTdacBinVoltCalibrated(&cali_dac_info_, 0, 0.0, &binaryVoltage);
+	// Open valve
+      }
+    else
+      {
+	do_state_ = true;
+	getTdacBinVoltCalibrated(&cali_dac_info_, 0, 5.0, &binaryVoltage);
+	//Close valve
+      }
+    
+    //Setting up I2C command
+    //Make note that the I2C command can only update 1 DAC channel at a time.
+    address = (uint8)(0x24);  //Address : h0x24 is the address for DAC
+    numBytesToSend = 3;       //NumI2CByteToSend : 3 bytes to specify DACA and the value
+    numBytesToReceive = 0;    //NumI2CBytesToReceive : 0 since we are only setting the value of the DAC
+    bytesCommand[0] = (uint8)(0x30);  //LJTDAC command byte : h0x30 (DACA)
+
+    //getTdacBinVoltCalibrated(&cali_dac_info_, 0, 5.0, &binaryVoltage);
+    bytesCommand[1] = (uint8)(binaryVoltage/256);          //value (high)
+    bytesCommand[2] = (uint8)(binaryVoltage & (0x00FF));   //value (low)
+
+    //Performing I2C low-level call
+    err = I2C(h_device_, options, speedAdjust, sdaPinNum, sclPinNum, address, numBytesToSend, numBytesToReceive, bytesCommand, &errorcode, ackArray, bytesResponse);
+
+    /*if(checkI2CErrorcode(errorcode) == -1 || err == -1)
+      {
+        ROS_WARN("Error in writing I2C");
+	return -1;
+	}*/
+    return 1;
+
+}
+
+
+//Sends a Feedback low-level command that configures digital directions,
+
+int LabjackNode::SetDO(uint16 fio, uint16 eio, uint16 cio) 
+{
+  uint8 sendBuff[14], recBuff[10]; //
+    int sendChars, recChars;
+    int len= 14;
+    int r_len= 10;
+    uint16 binVoltage16, checksumTotal;
+    uint8 state;
+
+    sendBuff[1] = (uint8)(0xF8);  //Command byte
+    //sendBuff[2] = 11;             //Number of data words (.5 word for echo, 10.5
+                                  //words for IOTypes and data)
+    sendBuff[2] = 0x04;             //Number of data words 
+
+    sendBuff[3] = (uint8)(0x00);  //Extended command number
+    sendBuff[6] = 0;     //Echo
+
+
+    // Set digital out
+    sendBuff[7]  = 0x1B; //27;  // Changed to 11 = BitStateWrite 
+    sendBuff[8]  = 0xFF; // WriteMask determine if the corresponding bit shouldf be updated
+    sendBuff[9]  = 0xFF;
+    sendBuff[10] = 0xFF;
+    sendBuff[11] = fio;
+    sendBuff[12] = eio;
+    sendBuff[13] = cio;
+
+    /*    // Read the analog input
+    sendBuff[14] = 0x02;
+    sendBuff[15] = 0x00; // Positive Channel
+    sendBuff[16] = 0x00; // Bit 0-3: Resolution Index
+                         // Bit 4-7: GainIndex
+    sendBuff[17] = 0x00; // Bit 0-2: Settling factor
+                         // Bit 7:   Differetial
+			 */
+    extendedChecksum(sendBuff, len);
+
+    //Sending command to U6
+    if( (sendChars = LJUSB_BulkWrite(h_device_, U6_PIPE_EP1_OUT, sendBuff, len)) < len)
+    {
+        if(sendChars == 0)
+            ROS_INFO("Feedback setup error : write failed");
+        else
+            ROS_INFO("Feedback setup error : did not write all of the buffer");
+        return -1;
+    }
+
+    //Reading response from U6
+    if( (recChars = LJUSB_BulkRead(h_device_, U6_PIPE_EP2_IN, recBuff, r_len)) < r_len)
+    {
+        if(recChars == 0)
+        {
+            ROS_INFO("Feedback setup error : read failed");
+            return -1;
+        }
+        else
+	  {
+            //ROS_INFO("Feedback setup error : did not read all of the buffer");
+	  }
+    }
+
+    checksumTotal = extendedChecksum16(recBuff, r_len);
+    if( (uint8)((checksumTotal / 256 ) & 0xff) != recBuff[5])
+    {
+      ROS_INFO("Feedback setup error : read buffer has bad checksum16(MSB)");
+        return -1;
+    }
+
+    if( (uint8)(checksumTotal & 0xff) != recBuff[4])
+    {
+        ROS_INFO("Feedback setup error : read buffer has bad checksum16(LBS)");
+        return -1;
+    }
+
+    if( extendedChecksum8(recBuff) != recBuff[0])
+    {
+        ROS_INFO("Feedback setup error : read buffer has bad checksum8");
+        return -1;
+    }
+
+    if( recBuff[1] != (uint8)(0xF8) || recBuff[2] != 2 || recBuff[3] != (uint8)(0x00) )
+    {
+        ROS_INFO("Feedback setup error : read buffer has wrong command bytes ");
+        return -1;
+    }
+
+    if( recBuff[6] != 0)
+    {
+        ROS_INFO("Feedback setup error : received errorcode %d for frame %d in Feedback response. ", recBuff[6], recBuff[7]);
+        return -1;
+    }
+
+    return 0;
+}
+
+
+bool LabjackNode::updateValves()
+{
+  //ROS_INFO("updating contoller");
+  // Maybe ros::WallTime and/or ros::WallDuration are better to use in this case?!
+  ros::Time t = ros::Time::now();
+  if (first_update_ == true)
+    {
+      
+      ros::Duration dt = t - last_update_;
+      last_update_ = t;
+
+      int local_time = counter_ % rate_ ;//(int) ( 1.0 / (( publish_rate_.expectedCycleTime() ).toSec())) ;
+      double gain = 10;
+      double desired_value[NUM_VALVES];
+      double current_value[NUM_VALVES];
+      double effort[NUM_VALVES];
+      
+      int i;
+      for(i=0; i < NUM_VALVES; i++)
+	//for(i=0; i < 10; i++)
+	{
+	  //ROS_INFO("Oh yes!");
+	  /*desired_value[i] = target_values_[i];
+	  // Check the values' states here
+	  if((error_ = eAIN(h_device_, &cali_info_, 0, 15, &current_value[i], 0, 0, 0, 0, 0, 0)) != 0)
+	    {
+	      ROS_WARN("Unable to aquire data from valve %d",i);
+	    }       
+	  // Insert PID controller here, for now compute error:
+	  
+	  effort[i] = gain * (current_value[i] - desired_value[i]);
+	  ROS_INFO("Effort[%d]: %f",i,effort[i]);*/
+
+	  /*if( high_time_[i] >= local_time )
+	    {
+	      // Open valve
+	      if( (error_ = eDO(h_device_,i,(long)0.0)) != 0 )
+		ROS_WARN("Unable to output data");
+	    }
+	  else
+	    {
+	      //Close valve
+	      if( (error_ = eDO(h_device_,i,(long)1.0)) != 0 )
+		ROS_WARN("Unable to output data");
+	    }
+	  */
+	  if( do_state_ == true)
+	    {
+	      do_state_ = false;
+	      // Open valve
+	      if( (error_ = eDO(h_device_,i,(long)0.0)) != 0 )
+		ROS_WARN("Unable to output data");
+	    }
+	  else
+	    {
+	      do_state_ = true;
+	      //Close valve
+	      if( (error_ = eDO(h_device_,i,(long)1.0)) != 0 )
+		ROS_WARN("Unable to output data");
+	    }
+	  
+	}
+
+    }
+  else
+    {
+      first_update_ = false;
+      last_update_ = t;
+    }
+
+
+  return true;
+    
+}
+
+
+/*
+int main(int argc, char **argv)
+{
+    HANDLE hDevice;
+    u6CalibrationInfo caliInfo;
+
+    //Opening first found U6 over USB
+    if( (hDevice = openUSBConnection(-1)) == NULL)
+        goto done;
+
+    //Getting calibration information from U6
+    if(getCalibrationInfo(hDevice, &caliInfo) < 0)
+        goto close;
+
+    if(ConfigIO_example(hDevice) != 0)
+        goto close;
+
+    //Stopping any previous streams
+    StreamStop(hDevice);
+
+    if(StreamConfig_example(hDevice) != 0)
+        goto close;
+
+    if(StreamStart(hDevice) != 0)
+        goto close;
+
+    StreamData_example(hDevice, &caliInfo);
+    StreamStop(hDevice);
+
+close:
+    closeUSBConnection(hDevice);
+done:
+    return 0;
+}*/
+
+//Sends a ConfigIO low-level command to turn off timers/counters
+int LabjackNode::ConfigIO()
+{
+    uint8 sendBuff[16], recBuff[16];
+    uint16 checksumTotal;
+    int sendChars, recChars, i;
+
+    sendBuff[1] = (uint8)(0xF8);  //Command byte
+    sendBuff[2] = (uint8)(0x03);  //Number of data words
+    sendBuff[3] = (uint8)(0x0B);  //Extended command number
+
+    sendBuff[6] = 1;  //Writemask : Setting writemask for TimerCounterConfig (bit 0)
+
+    sendBuff[7] = 0;  //NumberTimersEnabled : Setting to zero to disable all timers.
+    sendBuff[8] = 0;  //CounterEnable: Setting bit 0 and bit 1 to zero to disable both counters
+    sendBuff[9] = 0;  //TimerCounterPinOffset
+
+    for(i = 10; i < 16; i++)
+        sendBuff[i] = 0;   //Reserved
+    extendedChecksum(sendBuff, 16);
+
+    //Sending command to U6
+    if( (sendChars = LJUSB_BulkWrite(h_device_, U6_PIPE_EP1_OUT, sendBuff, 16)) < 16)
+    {
+        if(sendChars == 0)
+            ROS_INFO("ConfigIO error : write failed\n");
+        else
+            ROS_INFO("ConfigIO error : did not write all of the buffer\n");
+        return -1;
+    }
+
+    //Reading response from U6
+    if( (recChars = LJUSB_BulkRead(h_device_, U6_PIPE_EP2_IN, recBuff, 16)) < 16)
+    {
+        if(recChars == 0)
+            ROS_INFO("ConfigIO error : read failed\n");
+        else
+            ROS_INFO("ConfigIO error : did not read all of the buffer\n");
+        return -1;
+    }
+
+    checksumTotal = extendedChecksum16(recBuff, 15);
+    if( (uint8)((checksumTotal / 256 ) & 0xff) != recBuff[5])
+    {
+        ROS_INFO("ConfigIO error : read buffer has bad checksum16(MSB)\n");
+        return -1;
+    }
+
+    if( (uint8)(checksumTotal & 0xff) != recBuff[4])
+    {
+        ROS_INFO("ConfigIO error : read buffer has bad checksum16(LBS)\n");
+        return -1;
+    }
+
+    if( extendedChecksum8(recBuff) != recBuff[0])
+    {
+        ROS_INFO("ConfigIO error : read buffer has bad checksum8\n");
+        return -1;
+    }
+
+    if( recBuff[1] != (uint8)(0xF8) || recBuff[2] != (uint8)(0x05) || recBuff[3] != (uint8)(0x0B) )
+    {
+        ROS_INFO("ConfigIO error : read buffer has wrong command bytes\n");
+        return -1;
+    }
+
+    if( recBuff[6] != 0)
+    {
+        ROS_INFO("ConfigIO error : read buffer received errorcode %d\n", recBuff[6]);
+        return -1;
+    }
+
+    if( recBuff[8] != 0)
+    {
+        ROS_INFO("ConfigIO error : CounterEnable was not set to 0\n");
+        return -1;
+    }
+
+   if( recBuff[8] != 0)
+    {
+        ROS_INFO("ConfigIO error : NumberTimersEnabled was not set to 0\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+//Sends a StreamConfig low-level command to configure the stream.
+int LabjackNode::StreamConfig()
+{
+    int sendBuffSize;
+    sendBuffSize = 14+NumChannels_*2;
+    uint8 sendBuff[sendBuffSize], recBuff[8];
+    int sendChars, recChars;
+    uint16 checksumTotal;
+    uint16 scanInterval;
+    int i;
+
+    sendBuff[1] = (uint8)(0xF8);    //command byte
+    sendBuff[2] = 4 + NumChannels_;  //number of data words = NumChannels + 4
+    sendBuff[3] = (uint8)(0x11);    //extended command number
+    sendBuff[6] = NumChannels_;      //NumChannels
+    sendBuff[7] = 1;                //ResolutionIndex
+    sendBuff[8] = SamplesPerPacket_; //SamplesPerPacket
+    sendBuff[9] = 0;                //Reserved
+    sendBuff[10] = 0;               //SettlingFactor: 0
+    sendBuff[11] = 0;               //ScanConfig:
+                                    // Bit 3: Internal stream clock frequency = b0: 4 MHz
+                                    // Bit 1: Divide Clock by 256 = b0
+
+    //scanInterval = 4000;
+    scanInterval = 100;
+    sendBuff[12] = (uint8)(scanInterval&(0x00FF));  //scan interval (low byte)
+    sendBuff[13] = (uint8)(scanInterval/256);       //scan interval (high byte)
+
+    for(i = 0; i < NumChannels_; i++)
+    {
+        sendBuff[14 + i*2] = i;  //ChannelNumber (Positive) = i
+        sendBuff[15 + i*2] = 0;  //ChannelOptions: Bit 7: Differential = 0
+                                 //                Bit 5-4: GainIndex = 0 (+-10V)
+    }
+
+    extendedChecksum(sendBuff, sendBuffSize);
+
+    //Sending command to U6
+    sendChars = LJUSB_BulkWrite(h_device_, U6_PIPE_EP1_OUT, sendBuff, sendBuffSize);
+    if(sendChars < sendBuffSize)
+    {
+        if(sendChars == 0)
+            ROS_INFO("Error : write failed (StreamConfig).\n");
+        else
+            ROS_INFO("Error : did not write all of the buffer (StreamConfig).\n");
+        return -1;
+    }
+
+    for(i = 0; i < 8; i++)
+        recBuff[i] = 0;
+
+    //Reading response from U6
+    recChars = LJUSB_BulkRead(h_device_, U6_PIPE_EP2_IN, recBuff, 8);
+    if(recChars < 8)
+    {
+        if(recChars == 0)
+            ROS_INFO("Error : read failed (StreamConfig).\n");
+        else
+            ROS_INFO("Error : did not read all of the buffer, %d (StreamConfig).\n", recChars);
+
+        for(i=0; i<8; i++)
+            ROS_INFO("%d ", recBuff[i]);
+
+        return -1;
+    }
+
+    checksumTotal = extendedChecksum16(recBuff, 8);
+    if( (uint8)((checksumTotal / 256) & 0xff) != recBuff[5])
+    {
+        ROS_INFO("Error : read buffer has bad checksum16(MSB) (StreamConfig).\n");
+        return -1;
+    }
+
+    if( (uint8)(checksumTotal & 0xff) != recBuff[4])
+    {
+        ROS_INFO("Error : read buffer has bad checksum16(LBS) (StreamConfig).\n");
+        return -1;
+    }
+
+    if( extendedChecksum8(recBuff) != recBuff[0])
+    {
+        ROS_INFO("Error : read buffer has bad checksum8 (StreamConfig).\n");
+        return -1;
+    }
+
+    if( recBuff[1] != (uint8)(0xF8) || recBuff[2] != (uint8)(0x01) || recBuff[3] != (uint8)(0x11) || recBuff[7] != (uint8)(0x00))
+    {
+        ROS_INFO("Error : read buffer has wrong command bytes (StreamConfig).\n");
+        return -1;
+    }
+
+    if(recBuff[6] != 0)
+    {
+        ROS_INFO("Errorcode # %d from StreamConfig read.\n", (unsigned int)recBuff[6]);
+        return -1;
+    }
+
+    return 0;
+}
+
+//Sends a StreamStart low-level command to start streaming.
+int LabjackNode::StreamStart()
+{
+    uint8 sendBuff[2], recBuff[4];
+    int sendChars, recChars;
+
+    sendBuff[0] = (uint8)(0xA8);  //CheckSum8
+    sendBuff[1] = (uint8)(0xA8);  //command byte
+
+    //Sending command to U6
+    sendChars = LJUSB_BulkWrite(h_device_, U6_PIPE_EP1_OUT, sendBuff, 2);
+    if(sendChars < 2)
+    {
+        if(sendChars == 0)
+	  ROS_ERROR("Error : write failed.");
+        else
+	  ROS_WARN("Error : did not write all of the buffer.");
+        return -1;
+    }
+
+    //Reading response from U6
+    recChars = LJUSB_BulkRead(h_device_, U6_PIPE_EP2_IN, recBuff, 4);
+    if(recChars < 4)
+      {
+        if(recChars == 0)
+	  ROS_ERROR("Error : read failed.");
+        else
+	  ROS_WARN("Error : did not read all of the buffer.");
+        return -1;
+      }
+    
+    if( recBuff[1] != (uint8)(0xA9) || recBuff[3] != (uint8)(0x00) )
+      {
+        ROS_WARN("Error : read buffer has wrong command bytes ");
+        return -1;
+      }
+    
+    if(recBuff[2] != 0)
+      {
+        ROS_WARN("Errorcode # %d from StreamStart read.", (unsigned int)recBuff[2]);
+        return -1;
+      }
+    totalPackets_ = 0;
+    return 0;
+}
+
+//Reads the StreamData low-level function response in a loop.
+//All voltages from the stream are stored in the voltages 2D array.
+int LabjackNode::StreamData()
+{
+    int recBuffSize;
+    recBuffSize = 14 + SamplesPerPacket_*2;
+    int recChars, backLog;
+    int i, j, k, m, packetCounter, currChannel, scanNumber;
+    int totalPackets;        //The total number of StreamData responses read
+    uint16 voltageBytes, checksumTotal;
+    long startTime, endTime;
+    int autoRecoveryOn;
+
+    int numDisplay;          //Number of times to display streaming information
+    int numReadsPerDisplay;  //Number of packets to read before displaying streaming information
+    int readSizeMultiplier;  //Multiplier for the StreamData receive buffer size
+    int responseSize;        //The number of bytes in a StreamData response (differs with SamplesPerPacket)
+
+    numDisplay = 1;
+    numReadsPerDisplay = 1; //24
+    readSizeMultiplier = 5;
+    responseSize = 14 + SamplesPerPacket_*2;
+
+    /* Each StreamData response contains (SamplesPerPacket / NumChannels) * readSizeMultiplier
+     * samples for each channel.
+     * Total number of scans = (SamplesPerPacket / NumChannels) * readSizeMultiplier * numReadsPerDisplay * numDisplay
+     */
+    //double voltages[(SamplesPerPacket/NumChannels)*readSizeMultiplier*numReadsPerDisplay*numDisplay][NumChannels];
+    int stream_data_response_size = (SamplesPerPacket_/NumChannels_)*readSizeMultiplier;
+    int total_number_of_scans = stream_data_response_size*numReadsPerDisplay*numDisplay;
+    std::vector< std::vector<double> > voltages(total_number_of_scans, std::vector<double> (NumChannels_));
+
+    uint8 recBuff[responseSize*readSizeMultiplier];
+    packetCounter = 0;
+    currChannel = 0;
+    scanNumber = 0;
+    totalPackets = 0;
+    recChars = 0;
+    autoRecoveryOn = 0;
+
+    ROS_INFO("Reading Samples...\n");
+
+    startTime = getTickCount();
+
+    //    for (i = 0; i < numDisplay; i++)
+    //{
+    //for(j = 0; j < numReadsPerDisplay; j++)
+    //{
+            /* For USB StreamData, use Endpoint 3 for reads.  You can read the multiple
+             * StreamData responses of 64 bytes only if SamplesPerPacket is 25 to help
+             * improve streaming performance.  In this example this multiple is adjusted
+             * by the readSizeMultiplier variable.
+             */
+
+            //Reading stream response from U6
+            recChars = LJUSB_BulkRead(h_device_, U6_PIPE_EP3_IN, recBuff, responseSize*readSizeMultiplier);
+            if(recChars < responseSize*readSizeMultiplier)
+            {
+                if(recChars == 0)
+                ROS_INFO("Error : read failed (StreamData).");
+                else
+                ROS_INFO("Error : did not read all of the buffer, expected %d bytes but received %d(StreamData).", responseSize*readSizeMultiplier, recChars);
+
+                return -1;
+            }
+
+            //Checking for errors and getting data out of each StreamData response
+            for (m = 0; m < readSizeMultiplier; m++)
+            {
+                totalPackets++;
+		totalPackets_++;
+
+                checksumTotal = extendedChecksum16(recBuff + m*recBuffSize, recBuffSize);
+                if( (uint8)((checksumTotal >> 8) & 0xff) != recBuff[m*recBuffSize + 5])
+                {
+                    ROS_INFO("Error : read buffer has bad checksum16(MSB) (StreamData).");
+                    return -1;
+                }
+
+                if( (uint8)(checksumTotal & 0xff) != recBuff[m*recBuffSize + 4])
+                {
+                    ROS_INFO("Error : read buffer has bad checksum16(LBS) (StreamData).");
+                    return -1;
+                }
+
+                checksumTotal = extendedChecksum8(recBuff + m*recBuffSize);
+                if( checksumTotal != recBuff[m*recBuffSize])
+                {
+                    ROS_INFO("Error : read buffer has bad checksum8 (StreamData).");
+                    return -1;
+                }
+
+                if( recBuff[m*recBuffSize + 1] != (uint8)(0xF9) || recBuff[m*recBuffSize + 2] != 4 + SamplesPerPacket_ || recBuff[m*recBuffSize + 3] != (uint8)(0xC0) )
+                {
+                    ROS_INFO("Error : read buffer has wrong command bytes (StreamData).");
+                    return -1;
+                }
+
+                if(recBuff[m*recBuffSize + 11] == 59)
+                {
+                    if(!autoRecoveryOn)
+                    {
+                        ROS_INFO("\nU6 data buffer overflow detected in packet %d.\nNow using auto-recovery and reading buffered samples.", totalPackets);
+                        autoRecoveryOn = 1;
+                    }
+                }
+                else if(recBuff[m*recBuffSize + 11] == 60)
+                {
+                    ROS_INFO("Auto-recovery report in packet %d: %d scans were dropped.\nAuto-recovery is now off.", totalPackets, recBuff[m*recBuffSize + 6] + recBuff[m*recBuffSize + 7]*256);
+                    autoRecoveryOn = 0;
+                }
+                else if(recBuff[m*recBuffSize + 11] != 0)
+                {
+                    ROS_INFO("Errorcode # %d from StreamData read.\n", (unsigned int)recBuff[11]);
+                    return -1;
+                }
+
+                if(packetCounter != (int)recBuff[m*recBuffSize + 10])
+                {
+                    ROS_INFO("PacketCounter (%d) does not match with with current packet count (%d)(StreamData).", recBuff[m*recBuffSize + 10], packetCounter);
+                    return -1;
+                }
+
+                backLog = (int)recBuff[m*48 + 12 + SamplesPerPacket_*2];
+
+                for(k = 12; k < (12 + SamplesPerPacket_*2); k += 2)
+                {
+                    voltageBytes = (uint16)recBuff[m*recBuffSize + k] + (uint16)recBuff[m*recBuffSize + k+1]*256;
+
+                    //getAinVoltCalibrated(&cali_info_, 1, 0, 0, voltageBytes, &(voltages[scanNumber][currChannel]));
+		    getAinVoltCalibrated(&cali_info_, 1, 0, 0, voltageBytes, &(voltages[scanNumber][currChannel]));
+
+                    currChannel++;
+                    if(currChannel >= NumChannels_)
+                    {
+                        currChannel = 0;
+                        scanNumber++;
+                    }
+                }
+
+                if(packetCounter >= 255)
+                    packetCounter = 0;
+                else
+                    packetCounter++;
+            }
+	    //}
+
+        ROS_INFO("Number of scans: %d", scanNumber);
+        ROS_INFO("Total packets read: %d", totalPackets);
+        ROS_INFO("Current PacketCounter: %d", ((packetCounter == 0) ? 255 : packetCounter-1));
+        ROS_INFO("Current BackLog: %d", backLog);
+
+        for(k = 0; k < NumChannels_; k++)
+            ROS_INFO("  AI%d: %.4f V", k, voltages[scanNumber - 1][k]);
+//}
+
+    endTime = getTickCount();
+    ROS_INFO("\Rate of samples: %.0lf samples per second", (scanNumber*NumChannels_)/((endTime - startTime)/1000.0));
+    ROS_INFO("Rate of scans: %.0lf scans per second", scanNumber/((endTime - startTime)/1000.0));
+
+    return 0;
+}
+
+//Sends a StreamStop low-level command to stop streaming.
+int LabjackNode::StreamStop()
+{
+    uint8 sendBuff[2], recBuff[4];
+    int sendChars, recChars;
+
+    sendBuff[0] = (uint8)(0xB0);  //CheckSum8
+    sendBuff[1] = (uint8)(0xB0);  //command byte
+
+    //Sending command to U6
+    sendChars = LJUSB_BulkWrite(h_device_, U6_PIPE_EP1_OUT, sendBuff, 2);
+    if(sendChars < 2)
+    {
+        if(sendChars == 0)
+            ROS_INFO("Error : write failed (StreamStop).");
+        else
+            ROS_INFO("Error : did not write all of the buffer (StreamStop).");
+        return -1;
+    }
+
+    //Reading response from U6
+    recChars = LJUSB_BulkRead(h_device_, U6_PIPE_EP2_IN, recBuff, 4);
+    if(recChars < 4)
+    {
+        if(recChars == 0)
+            ROS_INFO("Error : read failed (StreamStop).");
+        else
+            ROS_INFO("Error : did not read all of the buffer (StreamStop).");
+        return -1;
+    }
+
+    if(recChars < 4)
+    {
+        if(recChars == 0)
+            ROS_INFO("Error : read failed (StreamStop).");
+        else
+            ROS_INFO("Error : did not read all of the buffer (StreamStop).");
+        return -1;
+    }
+
+    if( recBuff[1] != (uint8)(0xB1) || recBuff[3] != (uint8)(0x00) )
+    {
+        ROS_INFO("Error : read buffer has wrong command bytes (StreamStop).");
+        return -1;
+    }
+
+    if(recBuff[2] != 0)
+    {
+        ROS_INFO("Errorcode # %d from StreamStop read.", (unsigned int)recBuff[2]);
+        return -1;
+    }
+
+    /*
+    //Reading left over data in stream endpoint.  Only needs to be done with firmwares
+    //less than 0.94.
+    uint8 recBuffS[64];
+    int recCharsS = 64;
+    ROS_INFO("Reading left over data from stream endpoint.\n");
+    while(recCharsS > 0)
+        recCharsS = LJUSB_BulkRead(h_device_, U6_PIPE_EP3_IN, recBuffS, 64);
+    */
+
+    return 0;
+}
+
+
+
+
+bool LabjackNode::spin()
+{
+  //unsigned short  sensor_val[8];
+  //ros::Rate r(10); // 10 ms or 100 Hz ??
+
+
+  // Test steraming
+  
+
+ 
+  while (node_.ok())
+    {
+      if (publishing_) //If publishing, publish 
+	{
+	  publish();
+	}
+      if( do_state_ == true)
+	{
+	  do_state_ = false;
+	  SetDO(0x00,0x00,0x00);
+	}
+      else
+	{
+	  do_state_ = true;
+	  SetDO(0x01,0x00,0x00);
+	}
+      //getSensorReading();
+      ros::spinOnce(); //Needed for callbacks
+      publish_rate_.sleep(); //
+      // Increase the "clock" by one tick
+      counter_++;
+      //ROS_INFO("Counter %d",counter_);
+    }
+  
+  return true;
+}
+
+
+
+/*
+bool ShadowNode::setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp)
+{   
+  int set_valve[NUM_VALVES]={0,0,0,0,0,0,0,0};
+  //if( req.valve0_state > 
+  set_valve[0]=req.valve0_state; 
+  set_valve[1]=req.valve1_state;
+  set_valve[2]=req.valve2_state; 
+  set_valve[3]=req.valve3_state;
+  set_valve[4]=req.valve4_state; 
+  set_valve[5]=req.valve5_state;
+  set_valve[6]=req.valve6_state; 
+  set_valve[7]=req.valve7_state;
+
+  shadowHexSetValves(&shadow_->dev, set_valve);
+  return true;
+
+}
+*/
+
 
 /*
 bool ShadowNode::disController(shadow::DisableController::Request& req, shadow::DisableController::Response& resp)
@@ -399,119 +1228,45 @@ bool ShadowNode::getStatus(shadow::GetStatus::Request& req, shadow::GetStatus::R
 }
 */
 
-bool LabjackNode::setPublishing(shadow::StartPublishing::Request& req, shadow::StartPublishing::Response& resp) //startpublishing is a srv
+/*
+bool ShadowNode::getSensorReading(shadow::GetSensors::Request& req, shadow::GetSensors::Response& resp)
 {
-  if(req.start) //start from srv file
-    {
-      ROS_INFO("Labjack is now publishing sensor data");
-      publishing_ = true;
-      resp.state = true;
-    }
-  else
-    {
-      ROS_INFO("Labjack has stopped publishing");
-      publishing_ = false;
-      resp.state = false;
-     }
-  //this->pub->cyberglove_pub.shutdown();
-  return true;
-}
-
-bool   LabjackNode::isPublishing()
-{
-  if (publishing_)
-    {
-      return true;
-    }
-  else
-    {
-      return false;
-    }
-}
-
-void LabjackNode::publish()
-{
- 
-  /*int i;
+  int i;
   unsigned short  sensor_val[8];
+
   shadow_mutex_.lock();
   // Read the sensor values
   shadowHexReadSensors(&shadow_->dev,sensor_val);
+  resp.header.stamp = ros::Time::now();    
+  // Send the values
+  for(i=0;i < 8;i++)
+    resp.Sensors[i] = sensor_val[i];
+
   shadow_mutex_.unlock();
-  sensor_msg_.header.stamp = ros::Time::now();    
-  target_msg_.header.stamp = ros::Time::now();    
-  // Put the values into a message
-  for(i=0; i < NUM_VALVES; i++)
-    sensor_msg_.sensor[i] = sensor_val[i];
-
-  // Put the values into a message
-  for(i=0; i < NUM_VALVES; i++)
-    target_msg_.target[i] = set_target_[i];
-
    
-  //publish the msgs
-  shadow_pub_.publish(sensor_msg_);
-  target_pub_.publish(target_msg_);
-  */
-
-}
-
-
-
-bool LabjackNode::updateValves()
-{
-  ROS_INFO("updating contoller");
-  // Maybe ros::WallTime and/or ros::WallDuration are better to use in this case?!
-  ros::Time t = ros::Time::now();
-  if (last_update_ > 0)
-    {
-      ros::Duration dt = t - last_update_;
-      last_update_ = t;
-
-      double gain = 10;
-      double desired_value[NUM_VALVES];
-      double current_value[NUM_VALVES];
-      double effort[NUM_VALVES];
-      
-      int i;
-      for(i=0; i < NUM_VALVES; i++)
-	{
-	  desired_value[i] = target_values_[i];
-	  // Check the values' states here
-	  if((error_ = eAIN(h_device_, &cali_info_, 0, 15, &current_value[i], 0, 0, 0, 0, 0, 0)) != 0)
-	    {
-	      ROS_WARN("Unable to aquire data from valve %d",i);
-	    }       
-	  // Insert PID controller here, for now compute error:
-	  
-	  effort[i] = gain * (current_value[i] - desired_value[i]);
-	  ROS_INFO("Effort[%d]: %f",i,effort[i]);
-	}
-
-    }
-  else
-    last_update_ = t;
-
-  return true;
-    
-}
-
-bool LabjackNode::spin()
-{
-  //unsigned short  sensor_val[8];
-  //ros::Rate r(10); // 10 ms or 100 Hz ??
-
-  while (node_.ok())
-    {
-      if (publishing_) //If publishing, publish 
-	{
-	  publish();
-	}
-      //getSensorReading();
-      updateValves();
-      ros::spinOnce(); //Needed for callbacks
-      publish_rate_.sleep(); //
-    }
   return true;
 }
 
+
+
+bool ShadowNode::setController(shadow::SetController::Request& req, shadow::SetController::Response& resp)
+{   
+  
+  //ROS_INFO("Got: v=%d, s=%d, P=%d, I=%d, D=%d",(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
+  //  (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
+  shadow_mutex_.lock();
+  //shadowHexSetController(&shadow_->dev,(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
+  //		 (char)-1, (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
+  shadowAsciiSetController(&shadow_->dev,(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
+  		 (char)-1, (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
+  shadow_mutex_.unlock();
+  ROS_INFO("SHADOW: Setting controller values for valve %d using sensor %d: P=%d, I=%d, D=%d",
+	   (unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
+	   (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
+
+  //shadowHexPulseValves(&shadow_->dev,p_time_ms);
+
+  return true;
+}
+
+*/

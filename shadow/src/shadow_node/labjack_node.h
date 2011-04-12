@@ -63,8 +63,8 @@
 
 
 // messages
-/*#include <shadow/ShadowSensors.h>
-#include <shadow/Valves.h>
+#include <shadow/LJSensors.h>
+/*#include <shadow/Valves.h>
 #include <shadow/ShadowTargets.h>
 
 // services
@@ -74,12 +74,12 @@
 #include <shadow/GetSensors.h>
 
 #include <shadow/DisableController.h>
-#include <shadow/PulseValves.h>
-#include <shadow/SetValves.h>  */
 
+#include <shadow/SetValves.h>  */
+#include <shadow/LJPulseValves.h>
 #include <shadow/LJSetTargets.h>
 #include <shadow/StartPublishing.h> //StartPublishing is a service, .h is generated
-#define NUM_VALVES 20
+#define NUM_VALVES 10
 
 class LabjackNode
 {
@@ -93,11 +93,18 @@ class LabjackNode
 
   ros::NodeHandle private_nh_; //("~");
   std::string device;
-  
+
+  uint32 counter_;
+
   bool publishing_;
   ros::Rate publish_rate_;
+  int rate_;
+
   int number_of_valves_;
+  bool first_update_;
   ros::Time last_update_;
+  int high_time_[NUM_VALVES];
+  ros::Publisher ain_reading_pub_;
   /*ros::Publisher shadow_pub_;
   ros::Publisher valve_state_pub_;
   ros::Publisher target_pub_;
@@ -105,8 +112,8 @@ class LabjackNode
 
   ros::ServiceServer sensor_reading_srv_;  
   ros::ServiceServer system_status_srv_;
-  ros::ServiceServer set_valves_srv_;
-  ros::ServiceServer pulse_valves_srv_;*/
+  ros::ServiceServer set_valves_srv_;*/
+  ros::ServiceServer pulse_valves_srv_;
   //ros::ServiceServer contoller_srv_;
   ros::ServiceServer contoller_target_srv_;
   ros::ServiceServer disable_contoller_srv_;
@@ -114,9 +121,9 @@ class LabjackNode
   ros::ServiceServer publishing_srv_;
 
   // SPCU commands
-  /*bool setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp);
-  bool pulseValves(shadow::PulseValves::Request& req, shadow::PulseValves::Response& resp);
-  bool getSensorReading(shadow::GetSensors::Request& req, shadow::GetSensors::Response& resp);*/
+  //bool setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp);
+  bool pulseValves(shadow::LJPulseValves::Request& req, shadow::LJPulseValves::Response& resp);
+  //bool getSensorReading(shadow::GetSensors::Request& req, shadow::GetSensors::Response& resp);*/
   //bool setController(shadow::SetController::Request& req, shadow::SetController::Response& resp);
   //bool setControllerwTarget(shadow::SetControllerwTarget::Request& req, shadow::SetControllerwTarget::Response& resp);
   bool setTargets(shadow::LJSetTargets::Request& req, shadow::LJSetTargets::Response& resp);
@@ -137,6 +144,9 @@ class LabjackNode
 
   int  set_target_[NUM_VALVES];
   */
+  // Messange
+  shadow::LJSensors ain_msg_;
+  double ain_[14];
   double target_values_[NUM_VALVES];
   bool getSensorReading(void);
   bool updateValves();
@@ -144,10 +154,33 @@ class LabjackNode
   // LabJack 
   HANDLE            h_device_;
   u6CalibrationInfo cali_info_;
+  u6TdacCalibrationInfo cali_dac_info_;
   int               local_ID_;
   long              error_;
   bool do_state_;
+  int tdac_example();
+  //int feedback_setup_example();
+  int SetDO(uint16 fio, uint16 eio, uint16 cio);
 
+
+  /*
+const uint8 NumChannels = 5;        //For this example to work proper, SamplesPerPacket needs
+                                    //to be a multiple of NumChannels.
+const uint8 SamplesPerPacket = 25;  //Needs to be 25 to read multiple StreamData responses
+                                    //in one large packet, otherwise can be any value between
+                                    //1-25 for 1 StreamData response per packet.
+				    */
+  uint8 NumChannels_;        //For this example to work proper, SamplesPerPacket needs
+                                    //to be a multiple of NumChannels.
+  uint8 SamplesPerPacket_;  //Needs to be 25 to read multiple StreamData responses
+                                    //in one large packet, otherwise can be any value between
+                                    //1-25 for 1 StreamData response per packet.
+ int ConfigIO();
+ int StreamConfig();
+ int StreamStart();
+ int StreamData();
+ int StreamStop();
+ int totalPackets_;
  public:
   LabjackNode(); //Constructor
   LabjackNode(std::string dev); //Constuctor with args
