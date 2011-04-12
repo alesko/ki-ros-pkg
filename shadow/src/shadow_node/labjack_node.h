@@ -162,7 +162,8 @@ class LabjackNode
   //int feedback_setup_example();
   int SetDO(uint16 fio, uint16 eio, uint16 cio);
 
-
+  int packetCounter_ ;
+  int totalPackets_ ;
   /*
 const uint8 NumChannels = 5;        //For this example to work proper, SamplesPerPacket needs
                                     //to be a multiple of NumChannels.
@@ -180,7 +181,7 @@ const uint8 SamplesPerPacket = 25;  //Needs to be 25 to read multiple StreamData
  int StreamStart();
  int StreamData();
  int StreamStop();
- int totalPackets_;
+
  public:
   LabjackNode(); //Constructor
   LabjackNode(std::string dev); //Constuctor with args

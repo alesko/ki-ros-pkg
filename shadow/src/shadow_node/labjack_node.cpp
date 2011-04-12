@@ -76,6 +76,7 @@ using namespace ros;
 //const uint8 SamplesPerPacket = 25;  //Needs to be 25 to read multiple StreamData responses
                                     //in one large packet, otherwise can be any value between
                                     //1-25 for 1 StreamData response per packet.
+boost::mutex g_labjack_mutex;
 
 LabjackNode::LabjackNode() : private_nh_("~"), publish_rate_(100) //init variabels - ros grej
 {
@@ -84,7 +85,8 @@ LabjackNode::LabjackNode() : private_nh_("~"), publish_rate_(100) //init variabe
   SamplesPerPacket_ = 25;  //Needs to be 25 to read multiple StreamData responses
                                     //in one large packet, otherwise can be any value between
                                     //1-25 for 1 StreamData response per packet.
-
+  packetCounter_ = 0;
+  totalPackets_ = 0;
   rate_ = (int)(1.0/(publish_rate_.expectedCycleTime() ).toSec()+0.5);
   ROS_INFO("Rate is %d",rate_);
   //Open first found U6 over USB
@@ -109,7 +111,9 @@ LabjackNode::LabjackNode() : private_nh_("~"), publish_rate_(100) //init variabe
     }
 
   // Configure LabJack's IO
-  ConfigIO();
+  //ConfigIO();
+  if( ConfigIO() != 0 )
+    ROS_WARN("LabJack is not properly configured!");
   
   // Stop streming if LJ was stopped wrongly
   StreamStop();
@@ -237,7 +241,7 @@ void LabjackNode::init()
 
 bool LabjackNode::getSensorReading(void)
 {
-  long s;
+  //long s;
   double dblVoltage;
   for(int i=0; i <14; i++)
     {
@@ -322,8 +326,10 @@ bool LabjackNode::setPublishing(shadow::StartPublishing::Request& req, shadow::S
 {
   if(req.start) //start from srv file
     {
+      //if( ConfigIO() != 0 )
+      //ROS_WARN("LabJack is not properly configured !");
       if( StreamStart() != 0)
-	ROS_WARN("LabJack data streamin won't start!");
+	ROS_WARN("LabJack data streaming won't start!");
 
       ROS_INFO("Labjack is now publishing sensor data");
       publishing_ = true;
@@ -619,40 +625,6 @@ bool LabjackNode::updateValves()
 }
 
 
-/*
-int main(int argc, char **argv)
-{
-    HANDLE hDevice;
-    u6CalibrationInfo caliInfo;
-
-    //Opening first found U6 over USB
-    if( (hDevice = openUSBConnection(-1)) == NULL)
-        goto done;
-
-    //Getting calibration information from U6
-    if(getCalibrationInfo(hDevice, &caliInfo) < 0)
-        goto close;
-
-    if(ConfigIO_example(hDevice) != 0)
-        goto close;
-
-    //Stopping any previous streams
-    StreamStop(hDevice);
-
-    if(StreamConfig_example(hDevice) != 0)
-        goto close;
-
-    if(StreamStart(hDevice) != 0)
-        goto close;
-
-    StreamData_example(hDevice, &caliInfo);
-    StreamStop(hDevice);
-
-close:
-    closeUSBConnection(hDevice);
-done:
-    return 0;
-}*/
 
 //Sends a ConfigIO low-level command to turn off timers/counters
 int LabjackNode::ConfigIO()
@@ -757,15 +729,15 @@ int LabjackNode::StreamConfig()
     sendBuff[3] = (uint8)(0x11);    //extended command number
     sendBuff[6] = NumChannels_;      //NumChannels
     sendBuff[7] = 1;                //ResolutionIndex
-    sendBuff[8] = SamplesPerPacket_; //SamplesPerPacket
+    sendBuff[8] = SamplesPerPacket_; //SamplesPerPacket, 1-25
     sendBuff[9] = 0;                //Reserved
     sendBuff[10] = 0;               //SettlingFactor: 0
     sendBuff[11] = 0;               //ScanConfig:
                                     // Bit 3: Internal stream clock frequency = b0: 4 MHz
                                     // Bit 1: Divide Clock by 256 = b0
 
-    //scanInterval = 4000;
-    scanInterval = 100;
+    scanInterval = 4000;
+    //scanInterval = 100;
     sendBuff[12] = (uint8)(scanInterval&(0x00FF));  //scan interval (low byte)
     sendBuff[13] = (uint8)(scanInterval/256);       //scan interval (high byte)
 
@@ -797,9 +769,9 @@ int LabjackNode::StreamConfig()
     if(recChars < 8)
     {
         if(recChars == 0)
-            ROS_INFO("Error : read failed (StreamConfig).\n");
+            ROS_WARN("Error : read failed (StreamConfig).\n");
         else
-            ROS_INFO("Error : did not read all of the buffer, %d (StreamConfig).\n", recChars);
+            ROS_WARN("Error : did not read all of the buffer, %d (StreamConfig).\n", recChars);
 
         for(i=0; i<8; i++)
             ROS_INFO("%d ", recBuff[i]);
@@ -810,31 +782,31 @@ int LabjackNode::StreamConfig()
     checksumTotal = extendedChecksum16(recBuff, 8);
     if( (uint8)((checksumTotal / 256) & 0xff) != recBuff[5])
     {
-        ROS_INFO("Error : read buffer has bad checksum16(MSB) (StreamConfig).\n");
+        ROS_WARN("Error : read buffer has bad checksum16(MSB) (StreamConfig).\n");
         return -1;
     }
 
     if( (uint8)(checksumTotal & 0xff) != recBuff[4])
     {
-        ROS_INFO("Error : read buffer has bad checksum16(LBS) (StreamConfig).\n");
+        ROS_WARN("Error : read buffer has bad checksum16(LBS) (StreamConfig).\n");
         return -1;
     }
 
     if( extendedChecksum8(recBuff) != recBuff[0])
     {
-        ROS_INFO("Error : read buffer has bad checksum8 (StreamConfig).\n");
+        ROS_WARN("Error : read buffer has bad checksum8 (StreamConfig).\n");
         return -1;
     }
 
     if( recBuff[1] != (uint8)(0xF8) || recBuff[2] != (uint8)(0x01) || recBuff[3] != (uint8)(0x11) || recBuff[7] != (uint8)(0x00))
     {
-        ROS_INFO("Error : read buffer has wrong command bytes (StreamConfig).\n");
+        ROS_WARN("Error : read buffer has wrong command bytes (StreamConfig).\n");
         return -1;
     }
 
     if(recBuff[6] != 0)
     {
-        ROS_INFO("Errorcode # %d from StreamConfig read.\n", (unsigned int)recBuff[6]);
+        ROS_WARN("Errorcode # %d from StreamConfig read.\n", (unsigned int)recBuff[6]);
         return -1;
     }
 
@@ -844,7 +816,9 @@ int LabjackNode::StreamConfig()
 //Sends a StreamStart low-level command to start streaming.
 int LabjackNode::StreamStart()
 {
-    uint8 sendBuff[2], recBuff[4];
+  totalPackets_ = 0;
+   
+  uint8 sendBuff[2], recBuff[4];
     int sendChars, recChars;
 
     sendBuff[0] = (uint8)(0xA8);  //CheckSum8
@@ -883,7 +857,7 @@ int LabjackNode::StreamStart()
         ROS_WARN("Errorcode # %d from StreamStart read.", (unsigned int)recBuff[2]);
         return -1;
       }
-    totalPackets_ = 0;
+    
     return 0;
 }
 
@@ -894,8 +868,8 @@ int LabjackNode::StreamData()
     int recBuffSize;
     recBuffSize = 14 + SamplesPerPacket_*2;
     int recChars, backLog;
-    int i, j, k, m, packetCounter, currChannel, scanNumber;
-    int totalPackets;        //The total number of StreamData responses read
+    int i, j, k, m, currChannel, scanNumber;//packetCounter
+    //int totalPackets;        //The total number of StreamData responses read
     uint16 voltageBytes, checksumTotal;
     long startTime, endTime;
     int autoRecoveryOn;
@@ -920,14 +894,14 @@ int LabjackNode::StreamData()
     std::vector< std::vector<double> > voltages(total_number_of_scans, std::vector<double> (NumChannels_));
 
     uint8 recBuff[responseSize*readSizeMultiplier];
-    packetCounter = 0;
+    //packetCounter = 0;
     currChannel = 0;
     scanNumber = 0;
-    totalPackets = 0;
+    //totalPackets = 0;
     recChars = 0;
     autoRecoveryOn = 0;
 
-    ROS_INFO("Reading Samples...\n");
+    //ROS_INFO("Reading Samples...\n");
 
     startTime = getTickCount();
 
@@ -935,118 +909,122 @@ int LabjackNode::StreamData()
     //{
     //for(j = 0; j < numReadsPerDisplay; j++)
     //{
-            /* For USB StreamData, use Endpoint 3 for reads.  You can read the multiple
-             * StreamData responses of 64 bytes only if SamplesPerPacket is 25 to help
-             * improve streaming performance.  In this example this multiple is adjusted
-             * by the readSizeMultiplier variable.
-             */
+    /* For USB StreamData, use Endpoint 3 for reads.  You can read the multiple
+     * StreamData responses of 64 bytes only if SamplesPerPacket is 25 to help
+     * improve streaming performance.  In this example this multiple is adjusted
+     * by the readSizeMultiplier variable.
+     */
+    
+    //Reading stream response from U6
+    recChars = LJUSB_BulkRead(h_device_, U6_PIPE_EP3_IN, recBuff, responseSize*readSizeMultiplier);
+    if(recChars < responseSize*readSizeMultiplier)
+      {
+	if(recChars == 0)
+	  ROS_WARN("Error : read failed (StreamData).");
+	else
+	  ROS_WARN("Error : did not read all of the buffer, expected %d bytes but received %d(StreamData).", responseSize*readSizeMultiplier, recChars);
+	
+	return -1;
+      }
+    
+    //Checking for errors and getting data out of each StreamData response
+    for (m = 0; m < readSizeMultiplier; m++)
+      {
+	//totalPackets++;
+	totalPackets_++;
+	
+	checksumTotal = extendedChecksum16(recBuff + m*recBuffSize, recBuffSize);
+	if( (uint8)((checksumTotal >> 8) & 0xff) != recBuff[m*recBuffSize + 5])
+	  {
+	    ROS_WARN("Error : read buffer has bad checksum16(MSB) (StreamData).");
+	    return -1;
+	  }
+	
+	if( (uint8)(checksumTotal & 0xff) != recBuff[m*recBuffSize + 4])
+	  {
+	    ROS_WARN("Error : read buffer has bad checksum16(LBS) (StreamData).");
+	    return -1;
+	  }
+	
+	checksumTotal = extendedChecksum8(recBuff + m*recBuffSize);
+	if( checksumTotal != recBuff[m*recBuffSize])
+	  {
+	    ROS_WARN("Error : read buffer has bad checksum8 (StreamData).");
+	    return -1;
+	  }
+	
+	if( recBuff[m*recBuffSize + 1] != (uint8)(0xF9) || recBuff[m*recBuffSize + 2] != 4 + SamplesPerPacket_ || recBuff[m*recBuffSize + 3] != (uint8)(0xC0) )
+	  {
+	    ROS_WARN("Error : read buffer has wrong command bytes (StreamData).");
+	    return -1;
+	  }
+	
+	if(recBuff[m*recBuffSize + 11] == 59)
+	  {
+	    if(!autoRecoveryOn)
+	      {
+		ROS_WARN("\nU6 data buffer overflow detected in packet %d.\nNow using auto-recovery and reading buffered samples.", totalPackets_);
+		autoRecoveryOn = 1;
+	      }
+	  }
+	else if(recBuff[m*recBuffSize + 11] == 60)
+	  {
+	    ROS_WARN("Auto-recovery report in packet %d: %d scans were dropped.\nAuto-recovery is now off.", totalPackets_, recBuff[m*recBuffSize + 6] + recBuff[m*recBuffSize + 7]*256);
+	    autoRecoveryOn = 0;
+	  }
+	else if(recBuff[m*recBuffSize + 11] != 0)
+	  {
+	    ROS_WARN("Errorcode # %d from StreamData read.\n", (unsigned int)recBuff[11]);
+	    return -1;
+	  }
+	
+	if(packetCounter_ != (int)recBuff[m*recBuffSize + 10])
+	  {
+	    ROS_WARN("PacketCounter (%d) does not match with with current packet count (%d)(StreamData).", recBuff[m*recBuffSize + 10], packetCounter_);
+	    return -1;
+	  }
 
-            //Reading stream response from U6
-            recChars = LJUSB_BulkRead(h_device_, U6_PIPE_EP3_IN, recBuff, responseSize*readSizeMultiplier);
-            if(recChars < responseSize*readSizeMultiplier)
-            {
-                if(recChars == 0)
-                ROS_INFO("Error : read failed (StreamData).");
-                else
-                ROS_INFO("Error : did not read all of the buffer, expected %d bytes but received %d(StreamData).", responseSize*readSizeMultiplier, recChars);
+	backLog = (int)recBuff[m*48 + 12 + SamplesPerPacket_*2];
 
-                return -1;
-            }
+	for(k = 12; k < (12 + SamplesPerPacket_*2); k += 2)
+	  {
+	    voltageBytes = (uint16)recBuff[m*recBuffSize + k] + (uint16)recBuff[m*recBuffSize + k+1]*256;
 
-            //Checking for errors and getting data out of each StreamData response
-            for (m = 0; m < readSizeMultiplier; m++)
-            {
-                totalPackets++;
-		totalPackets_++;
+	    //getAinVoltCalibrated(&cali_info_, 1, 0, 0, voltageBytes, &(voltages[scanNumber][currChannel]));
+	    getAinVoltCalibrated(&cali_info_, 1, 0, 0, voltageBytes, &(voltages[scanNumber][currChannel]));
 
-                checksumTotal = extendedChecksum16(recBuff + m*recBuffSize, recBuffSize);
-                if( (uint8)((checksumTotal >> 8) & 0xff) != recBuff[m*recBuffSize + 5])
-                {
-                    ROS_INFO("Error : read buffer has bad checksum16(MSB) (StreamData).");
-                    return -1;
-                }
+	    currChannel++;
+	    if(currChannel >= NumChannels_)
+	      {
+		currChannel = 0;
+		scanNumber++;
+	      }
+	  }
 
-                if( (uint8)(checksumTotal & 0xff) != recBuff[m*recBuffSize + 4])
-                {
-                    ROS_INFO("Error : read buffer has bad checksum16(LBS) (StreamData).");
-                    return -1;
-                }
+	if(packetCounter_ >= 255)
+	  packetCounter_ = 0;
+	else
+	  packetCounter_++;
+      }
 
-                checksumTotal = extendedChecksum8(recBuff + m*recBuffSize);
-                if( checksumTotal != recBuff[m*recBuffSize])
-                {
-                    ROS_INFO("Error : read buffer has bad checksum8 (StreamData).");
-                    return -1;
-                }
+    
+      
+    //}
 
-                if( recBuff[m*recBuffSize + 1] != (uint8)(0xF9) || recBuff[m*recBuffSize + 2] != 4 + SamplesPerPacket_ || recBuff[m*recBuffSize + 3] != (uint8)(0xC0) )
-                {
-                    ROS_INFO("Error : read buffer has wrong command bytes (StreamData).");
-                    return -1;
-                }
-
-                if(recBuff[m*recBuffSize + 11] == 59)
-                {
-                    if(!autoRecoveryOn)
-                    {
-                        ROS_INFO("\nU6 data buffer overflow detected in packet %d.\nNow using auto-recovery and reading buffered samples.", totalPackets);
-                        autoRecoveryOn = 1;
-                    }
-                }
-                else if(recBuff[m*recBuffSize + 11] == 60)
-                {
-                    ROS_INFO("Auto-recovery report in packet %d: %d scans were dropped.\nAuto-recovery is now off.", totalPackets, recBuff[m*recBuffSize + 6] + recBuff[m*recBuffSize + 7]*256);
-                    autoRecoveryOn = 0;
-                }
-                else if(recBuff[m*recBuffSize + 11] != 0)
-                {
-                    ROS_INFO("Errorcode # %d from StreamData read.\n", (unsigned int)recBuff[11]);
-                    return -1;
-                }
-
-                if(packetCounter != (int)recBuff[m*recBuffSize + 10])
-                {
-                    ROS_INFO("PacketCounter (%d) does not match with with current packet count (%d)(StreamData).", recBuff[m*recBuffSize + 10], packetCounter);
-                    return -1;
-                }
-
-                backLog = (int)recBuff[m*48 + 12 + SamplesPerPacket_*2];
-
-                for(k = 12; k < (12 + SamplesPerPacket_*2); k += 2)
-                {
-                    voltageBytes = (uint16)recBuff[m*recBuffSize + k] + (uint16)recBuff[m*recBuffSize + k+1]*256;
-
-                    //getAinVoltCalibrated(&cali_info_, 1, 0, 0, voltageBytes, &(voltages[scanNumber][currChannel]));
-		    getAinVoltCalibrated(&cali_info_, 1, 0, 0, voltageBytes, &(voltages[scanNumber][currChannel]));
-
-                    currChannel++;
-                    if(currChannel >= NumChannels_)
-                    {
-                        currChannel = 0;
-                        scanNumber++;
-                    }
-                }
-
-                if(packetCounter >= 255)
-                    packetCounter = 0;
-                else
-                    packetCounter++;
-            }
-	    //}
-
-        ROS_INFO("Number of scans: %d", scanNumber);
-        ROS_INFO("Total packets read: %d", totalPackets);
-        ROS_INFO("Current PacketCounter: %d", ((packetCounter == 0) ? 255 : packetCounter-1));
-        ROS_INFO("Current BackLog: %d", backLog);
-
-        for(k = 0; k < NumChannels_; k++)
-            ROS_INFO("  AI%d: %.4f V", k, voltages[scanNumber - 1][k]);
-//}
-
-    endTime = getTickCount();
-    ROS_INFO("\Rate of samples: %.0lf samples per second", (scanNumber*NumChannels_)/((endTime - startTime)/1000.0));
-    ROS_INFO("Rate of scans: %.0lf scans per second", scanNumber/((endTime - startTime)/1000.0));
-
+    //ROS_INFO("Number of scans: %d", scanNumber);
+    //ROS_INFO("Total packets read: %d", totalPackets_);
+    //ROS_INFO("Current PacketCounter: %d", ((packetCounter_ == 0) ? 255 : packetCounter_-1));
+    //ROS_INFO("Current BackLog: %d", backLog);
+    
+    for(k = 0; k < NumChannels_; k++)
+      ain_[k] = voltages[scanNumber - 1][k];
+    //  ROS_INFO("  AI%d: %.4f V", k, voltages[scanNumber - 1][k]);
+    //}
+    
+    //endTime = getTickCount();
+    //ROS_INFO("\Rate of samples: %.0lf samples per second", (scanNumber*NumChannels_)/((endTime - startTime)/1000.0));
+    //ROS_INFO("Rate of scans: %.0lf scans per second", scanNumber/((endTime - startTime)/1000.0));
+    
     return 0;
 }
 
