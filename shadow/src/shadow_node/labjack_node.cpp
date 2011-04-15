@@ -326,8 +326,8 @@ bool LabjackNode::setPublishing(shadow::StartPublishing::Request& req, shadow::S
 {
   if(req.start) //start from srv file
     {
-      //if( ConfigIO() != 0 )
-      //ROS_WARN("LabJack is not properly configured !");
+      if( StreamConfig() != 0 )
+	ROS_WARN("LabJack is not properly configured !");
       if( StreamStart() != 0)
 	ROS_WARN("LabJack data streaming won't start!");
 
@@ -346,7 +346,7 @@ bool LabjackNode::setPublishing(shadow::StartPublishing::Request& req, shadow::S
   return true;
 }
 
-bool   LabjackNode::isPublishing()
+bool LabjackNode::isPublishing()
 {
   if (publishing_)
     {
@@ -360,11 +360,15 @@ bool   LabjackNode::isPublishing()
 
 void LabjackNode::publish()
 {
+
   StreamData();
+  int i;
+
   ain_msg_.header.stamp = ros::Time::now();    
    // Put the values into a message
-  for(int i=0; i < 14; i++)
+  for( i=0; i < 14; i++)
     ain_msg_.ain[i] = ain_[i];
+
   ain_reading_pub_.publish(ain_msg_);
   //ain_reading_pub_.publush();
 
@@ -721,7 +725,7 @@ int LabjackNode::StreamConfig()
     uint8 sendBuff[sendBuffSize], recBuff[8];
     int sendChars, recChars;
     uint16 checksumTotal;
-    uint16 scanInterval;
+    //    uint16 scanInterval;
     int i;
 
     sendBuff[1] = (uint8)(0xF8);    //command byte
@@ -736,10 +740,9 @@ int LabjackNode::StreamConfig()
                                     // Bit 3: Internal stream clock frequency = b0: 4 MHz
                                     // Bit 1: Divide Clock by 256 = b0
 
-    scanInterval = 4000;
-    //scanInterval = 100;
-    sendBuff[12] = (uint8)(scanInterval&(0x00FF));  //scan interval (low byte)
-    sendBuff[13] = (uint8)(scanInterval/256);       //scan interval (high byte)
+    scanInterval_ = 4000;
+    sendBuff[12] = (uint8)(scanInterval_&(0x00FF));  //scan interval (low byte)
+    sendBuff[13] = (uint8)(scanInterval_/256);       //scan interval (high byte)
 
     for(i = 0; i < NumChannels_; i++)
     {
@@ -755,9 +758,9 @@ int LabjackNode::StreamConfig()
     if(sendChars < sendBuffSize)
     {
         if(sendChars == 0)
-            ROS_INFO("Error : write failed (StreamConfig).\n");
+            ROS_INFO("Error : write failed (StreamConfig).");
         else
-            ROS_INFO("Error : did not write all of the buffer (StreamConfig).\n");
+            ROS_INFO("Error : did not write all of the buffer (StreamConfig).");
         return -1;
     }
 
@@ -769,9 +772,9 @@ int LabjackNode::StreamConfig()
     if(recChars < 8)
     {
         if(recChars == 0)
-            ROS_WARN("Error : read failed (StreamConfig).\n");
+            ROS_WARN("Error: read failed (StreamConfig).");
         else
-            ROS_WARN("Error : did not read all of the buffer, %d (StreamConfig).\n", recChars);
+            ROS_WARN("Error: did not read all of the buffer, %d (StreamConfig).", recChars);
 
         for(i=0; i<8; i++)
             ROS_INFO("%d ", recBuff[i]);
@@ -782,31 +785,31 @@ int LabjackNode::StreamConfig()
     checksumTotal = extendedChecksum16(recBuff, 8);
     if( (uint8)((checksumTotal / 256) & 0xff) != recBuff[5])
     {
-        ROS_WARN("Error : read buffer has bad checksum16(MSB) (StreamConfig).\n");
+        ROS_WARN("Error: read buffer has bad checksum16(MSB) (StreamConfig).");
         return -1;
     }
 
     if( (uint8)(checksumTotal & 0xff) != recBuff[4])
     {
-        ROS_WARN("Error : read buffer has bad checksum16(LBS) (StreamConfig).\n");
+        ROS_WARN("Error: read buffer has bad checksum16(LBS) (StreamConfig).");
         return -1;
     }
 
     if( extendedChecksum8(recBuff) != recBuff[0])
     {
-        ROS_WARN("Error : read buffer has bad checksum8 (StreamConfig).\n");
+        ROS_WARN("Error: read buffer has bad checksum8 (StreamConfig).");
         return -1;
     }
 
     if( recBuff[1] != (uint8)(0xF8) || recBuff[2] != (uint8)(0x01) || recBuff[3] != (uint8)(0x11) || recBuff[7] != (uint8)(0x00))
     {
-        ROS_WARN("Error : read buffer has wrong command bytes (StreamConfig).\n");
+        ROS_WARN("Error: read buffer has wrong command bytes (StreamConfig).");
         return -1;
     }
 
     if(recBuff[6] != 0)
     {
-        ROS_WARN("Errorcode # %d from StreamConfig read.\n", (unsigned int)recBuff[6]);
+        ROS_WARN("Errorcode # %d from StreamConfig read.", (unsigned int)recBuff[6]);
         return -1;
     }
 
@@ -816,49 +819,52 @@ int LabjackNode::StreamConfig()
 //Sends a StreamStart low-level command to start streaming.
 int LabjackNode::StreamStart()
 {
-  totalPackets_ = 0;
+  //totalPackets_ = 0;
    
   uint8 sendBuff[2], recBuff[4];
-    int sendChars, recChars;
+  int sendChars, recChars;
 
-    sendBuff[0] = (uint8)(0xA8);  //CheckSum8
-    sendBuff[1] = (uint8)(0xA8);  //command byte
-
-    //Sending command to U6
-    sendChars = LJUSB_BulkWrite(h_device_, U6_PIPE_EP1_OUT, sendBuff, 2);
-    if(sendChars < 2)
+  sendBuff[0] = (uint8)(0xA8);  //CheckSum8
+  sendBuff[1] = (uint8)(0xA8);  //command byte
+  
+  //Sending command to U6
+  sendChars = LJUSB_BulkWrite(h_device_, U6_PIPE_EP1_OUT, sendBuff, 2);
+  if(sendChars < 2)
     {
-        if(sendChars == 0)
-	  ROS_ERROR("Error : write failed.");
-        else
-	  ROS_WARN("Error : did not write all of the buffer.");
-        return -1;
+      if(sendChars == 0)
+	ROS_ERROR("Error : write failed.");
+      else
+	ROS_WARN("Error : did not write all of the buffer.");
+      return -1;
     }
-
-    //Reading response from U6
-    recChars = LJUSB_BulkRead(h_device_, U6_PIPE_EP2_IN, recBuff, 4);
-    if(recChars < 4)
-      {
-        if(recChars == 0)
-	  ROS_ERROR("Error : read failed.");
-        else
-	  ROS_WARN("Error : did not read all of the buffer.");
-        return -1;
-      }
-    
-    if( recBuff[1] != (uint8)(0xA9) || recBuff[3] != (uint8)(0x00) )
-      {
-        ROS_WARN("Error : read buffer has wrong command bytes ");
-        return -1;
-      }
-    
-    if(recBuff[2] != 0)
-      {
-        ROS_WARN("Errorcode # %d from StreamStart read.", (unsigned int)recBuff[2]);
-        return -1;
-      }
-    
-    return 0;
+  
+  //Reading response from U6
+  recChars = LJUSB_BulkRead(h_device_, U6_PIPE_EP2_IN, recBuff, 4);
+  if(recChars < 4)
+    {
+      if(recChars == 0)
+	ROS_ERROR("Error : read failed.");
+      else
+	ROS_WARN("Error : did not read all of the buffer.");
+      return -1;
+    }
+  
+  if( recBuff[1] != (uint8)(0xA9) || recBuff[3] != (uint8)(0x00) )
+    {
+      ROS_WARN("Error : read buffer has wrong command bytes ");
+      return -1;
+    }
+  
+  if(recBuff[2] != 0)
+    {
+      ROS_WARN("Errorcode # %d from StreamStart read.", (unsigned int)recBuff[2]);
+      return -1;
+    }
+  
+  // Reset package counter
+  packetCounter_ = 0;
+  
+  return 0;
 }
 
 //Reads the StreamData low-level function response in a loop.
@@ -874,14 +880,14 @@ int LabjackNode::StreamData()
     long startTime, endTime;
     int autoRecoveryOn;
 
-    int numDisplay;          //Number of times to display streaming information
-    int numReadsPerDisplay;  //Number of packets to read before displaying streaming information
+    //int numDisplay;          //Number of times to display streaming information
+    //int numReadsPerDisplay;  //Number of packets to read before displaying streaming information
     int readSizeMultiplier;  //Multiplier for the StreamData receive buffer size
     int responseSize;        //The number of bytes in a StreamData response (differs with SamplesPerPacket)
 
-    numDisplay = 1;
-    numReadsPerDisplay = 1; //24
-    readSizeMultiplier = 5;
+    //numDisplay = 1;
+    //numReadsPerDisplay = 1; //24
+    readSizeMultiplier = 25;
     responseSize = 14 + SamplesPerPacket_*2;
 
     /* Each StreamData response contains (SamplesPerPacket / NumChannels) * readSizeMultiplier
@@ -890,8 +896,9 @@ int LabjackNode::StreamData()
      */
     //double voltages[(SamplesPerPacket/NumChannels)*readSizeMultiplier*numReadsPerDisplay*numDisplay][NumChannels];
     int stream_data_response_size = (SamplesPerPacket_/NumChannels_)*readSizeMultiplier;
-    int total_number_of_scans = stream_data_response_size*numReadsPerDisplay*numDisplay;
-    std::vector< std::vector<double> > voltages(total_number_of_scans, std::vector<double> (NumChannels_));
+    //int total_number_of_scans = stream_data_response_size*numReadsPerDisplay*numDisplay;
+    //int total_number_of_scans = stream_data_response_size; //*numReadsPerDisplay*numDisplay;
+    std::vector< std::vector<double> > voltages(stream_data_response_size, std::vector<double> (NumChannels_));
 
     uint8 recBuff[responseSize*readSizeMultiplier];
     //packetCounter = 0;
@@ -903,7 +910,7 @@ int LabjackNode::StreamData()
 
     //ROS_INFO("Reading Samples...\n");
 
-    startTime = getTickCount();
+    //startTime = getTickCount();
 
     //    for (i = 0; i < numDisplay; i++)
     //{
@@ -920,9 +927,9 @@ int LabjackNode::StreamData()
     if(recChars < responseSize*readSizeMultiplier)
       {
 	if(recChars == 0)
-	  ROS_WARN("Error : read failed (StreamData).");
+	  ROS_WARN("Error: read failed (StreamData).");
 	else
-	  ROS_WARN("Error : did not read all of the buffer, expected %d bytes but received %d(StreamData).", responseSize*readSizeMultiplier, recChars);
+	  ROS_WARN("Error: did not read all of the buffer, expected %d bytes but received %d(StreamData).", responseSize*readSizeMultiplier, recChars);
 	
 	return -1;
       }
@@ -936,7 +943,7 @@ int LabjackNode::StreamData()
 	checksumTotal = extendedChecksum16(recBuff + m*recBuffSize, recBuffSize);
 	if( (uint8)((checksumTotal >> 8) & 0xff) != recBuff[m*recBuffSize + 5])
 	  {
-	    ROS_WARN("Error : read buffer has bad checksum16(MSB) (StreamData).");
+	    ROS_WARN("Error: read buffer has bad checksum16(MSB) (StreamData).");
 	    return -1;
 	  }
 	
@@ -1007,10 +1014,6 @@ int LabjackNode::StreamData()
 	  packetCounter_++;
       }
 
-    
-      
-    //}
-
     //ROS_INFO("Number of scans: %d", scanNumber);
     //ROS_INFO("Total packets read: %d", totalPackets_);
     //ROS_INFO("Current PacketCounter: %d", ((packetCounter_ == 0) ? 255 : packetCounter_-1));
@@ -1027,6 +1030,8 @@ int LabjackNode::StreamData()
     
     return 0;
 }
+
+
 
 //Sends a StreamStop low-level command to stop streaming.
 int LabjackNode::StreamStop()
@@ -1093,8 +1098,43 @@ int LabjackNode::StreamStop()
     return 0;
 }
 
+double LabjackNode::volts2temperature(double volts)
+{
 
+  double resistance[31]={3708, 3539, 3378, 3226, 3081, 2944,
+		     2814, 2690, 2572, 2460, 2354, 2252,
+		     2156, 2064, 1977, 1894, 1815, 1739,
+		     1667, 1599, 1533, 1471, 1412, 1355, 1301,
+		     1249, 1200, 1152, 1107, 1064, 1023};
+  double temp[31]={14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,
+	       30,31,32,33,34,35,36,37,38,39,40,41,42,43,44};
 
+  double t;
+
+  int i=0;
+  double meas_res = volts/0.000200; // 200 milliamp
+  
+  if( meas_res > 3708 )
+    {
+      ROS_WARN("Temp too low!");
+      return 0;
+    }
+  if( meas_res < 1064 )
+    {
+      ROS_WARN("Temp too high !");
+      return 0;
+    }
+
+  while(meas_res < resistance[i])
+    i++;
+ 
+  // Picse wise linear approximation:
+  t=((meas_res-resistance[i])*(temp[i+1]-temp[i])/(resistance[i+1]-resistance[i]))+temp[i];
+  //ROS_INFO("Res %f, i=%d  %f %f temp %f",meas_res,i,resistance[i],resistance[i+1], t);
+
+  return t;
+
+}
 
 bool LabjackNode::spin()
 {

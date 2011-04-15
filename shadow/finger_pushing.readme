@@ -1,0 +1,45 @@
+Make sure the compressor is running and supply air.
+Start the SPCU (Shadow Pneumatic Control Unit).
+Power the amplifire.
+Open the terminal, and start a few sessions (Ctrl-Shift + 't' will bring up a new tab)
+
+Start the modem (this is due to a bug):
+>minicom -s
+Select "Inställningar för serieport", type 'a' and change the path from
+/dev/ttyUSB2 to
+/dev/ttyUSB0 (this is the port where the SPCU is connected, MIGHT change!)
+Make sure tha the baud rate is 19200, and hardware flow control ins truned on
+Then select 'Avsluta' which will start the communication terminal. Type '?' to check communication. The answer should read:
+"Shadow Pneumatic Control Unit Version 1.0 194"
+if everything is working.
+(Ctrl-A + Z) will bring up a menu. Press Q and enter to leave.
+The communication is now initialized.
+
+
+Move to the dir ki-ros-pkg/shadow, and start ROS:
+>cd ki-ros-pkg/shadow/
+>roslaunch finger_pushing.launch
+
+ROS is now running with a 'node' (ie program) tha controlls the SPCU.
+
+In a diffrent terminal (Ctrl-Shift + 't') move to the dir ki-ros-pkg/shadow/bin:
+>cd ki-ros-pkg/shadow/bin/
+
+Start the max force measuring program:
+>./finger_pushing_ini
+(remember the leading ./) and follow the instructions.
+
+After the prorgam is finished type:
+rosparam get /shadow/baseline_force
+rosparam get /shadow/max_pull_force
+
+to see that the forces was properly recorded.
+
+Start the reset program:
+>./finger_pushing_clear
+
+This will remove paramters (REMEMBER TO DO THIS BETWEEN SUBJECTS)
+
+To start the experiment type:
+>./finger_pushing_exp
+

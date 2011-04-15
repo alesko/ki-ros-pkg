@@ -176,13 +176,14 @@ const uint8 SamplesPerPacket = 25;  //Needs to be 25 to read multiple StreamData
   uint8 SamplesPerPacket_;  //Needs to be 25 to read multiple StreamData responses
                                     //in one large packet, otherwise can be any value between
                                     //1-25 for 1 StreamData response per packet.
- int ConfigIO();
+  int ConfigIO();
  int StreamConfig();
  int StreamStart();
  int StreamData();
  int StreamStop();
-
+   uint16 scanInterval_;
  public:
+
   LabjackNode(); //Constructor
   LabjackNode(std::string dev); //Constuctor with args
   ~LabjackNode(); //Destructor
@@ -195,7 +196,7 @@ const uint8 SamplesPerPacket = 25;  //Needs to be 25 to read multiple StreamData
   void publish();
   bool isPublishing();
 
-
+  double volts2temperature(double volts);
   // Contoller commands
   /*bool controllerInit();
   void controllerStarting();
