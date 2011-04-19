@@ -239,6 +239,19 @@ void LabjackNode::init()
 
 }
 
+bool LabjackNode::getAINdata(double data[14])
+{
+  int i;
+  for( i=0; i < 14; i++)
+    {
+      labjack_mutex_.lock();
+      data[i] = ain_[i];
+      labjack_mutex_.unlock();
+    }
+
+  return true;
+}
+
 bool LabjackNode::getSensorReading(void)
 {
   //long s;
@@ -367,23 +380,15 @@ void LabjackNode::publish()
   ain_msg_.header.stamp = ros::Time::now();    
    // Put the values into a message
   for( i=0; i < 14; i++)
-    ain_msg_.ain[i] = ain_[i];
-
+    {
+      labjack_mutex_.lock();
+      ain_msg_.ain[i] = ain_[i];
+      labjack_mutex_.unlock();
+    }
   ain_reading_pub_.publish(ain_msg_);
   //ain_reading_pub_.publush();
 
-  /*int i;
-  unsigned short  sensor_val[8];
-  shadow_mutex_.lock();
-  // Read the sensor values
-  shadowHexReadSensors(&shadow_->dev,sensor_val);
-  shadow_mutex_.unlock();
-  sensor_msg_.header.stamp = ros::Time::now();    
-  target_msg_.header.stamp = ros::Time::now();    
-  // Put the values into a message
-  for(i=0; i < NUM_VALVES; i++)
-    sensor_msg_.sensor[i] = sensor_val[i];
-
+    /*
   // Put the values into a message
   for(i=0; i < NUM_VALVES; i++)
     target_msg_.target[i] = set_target_[i];
@@ -1020,7 +1025,11 @@ int LabjackNode::StreamData()
     //ROS_INFO("Current BackLog: %d", backLog);
     
     for(k = 0; k < NumChannels_; k++)
-      ain_[k] = voltages[scanNumber - 1][k];
+      {
+	labjack_mutex_.lock();
+	ain_[k] = voltages[scanNumber - 1][k];
+	labjack_mutex_.unlock();
+      }
     //  ROS_INFO("  AI%d: %.4f V", k, voltages[scanNumber - 1][k]);
     //}
     
@@ -1100,26 +1109,28 @@ int LabjackNode::StreamStop()
 
 double LabjackNode::volts2temperature(double volts)
 {
+  // Resistance voltage conversion table from 
+  // http://www.advindsys.com/ApNotes/YSI400SeriesProbesRvsT.htm
 
-  double resistance[31]={3708, 3539, 3378, 3226, 3081, 2944,
-		     2814, 2690, 2572, 2460, 2354, 2252,
-		     2156, 2064, 1977, 1894, 1815, 1739,
-		     1667, 1599, 1533, 1471, 1412, 1355, 1301,
-		     1249, 1200, 1152, 1107, 1064, 1023};
-  double temp[31]={14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,
-	       30,31,32,33,34,35,36,37,38,39,40,41,42,43,44};
+  double resistance[35] = {4273, 4074, 3886, 3708, 3539, 3378, 3226, 
+			   3081, 2944, 2814, 2690, 2572, 2460, 2354, 
+			   2252, 2156, 2064, 1977, 1894, 1815, 1739,
+			   1667, 1599, 1533, 1471, 1412, 1355, 1301,
+			   1249, 1200, 1152, 1107, 1064, 1023, 983.8 };
+  double temp[35] = {11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,
+		     28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45};
 
   double t;
 
   int i=0;
   double meas_res = volts/0.000200; // 200 milliamp
   
-  if( meas_res > 3708 )
+  if( meas_res > 42733 )
     {
       ROS_WARN("Temp too low!");
       return 0;
     }
-  if( meas_res < 1064 )
+  if( meas_res < 1023 )
     {
       ROS_WARN("Temp too high !");
       return 0;
@@ -1143,9 +1154,9 @@ bool LabjackNode::spin()
 
 
   // Test steraming
-  
+  double my_data[14];
+  int i;
 
- 
   while (node_.ok())
     {
       if (publishing_) //If publishing, publish 
@@ -1168,6 +1179,14 @@ bool LabjackNode::spin()
       // Increase the "clock" by one tick
       counter_++;
       //ROS_INFO("Counter %d",counter_);
+      getAINdata(my_data);
+      ROS_INFO("My data");
+      for(i=0;i<14;i++)
+	{
+	  printf("%f  ",my_data[i]);
+	}
+      printf("\n");
+  
     }
   
   return true;
@@ -1175,25 +1194,7 @@ bool LabjackNode::spin()
 
 
 
-/*
-bool ShadowNode::setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp)
-{   
-  int set_valve[NUM_VALVES]={0,0,0,0,0,0,0,0};
-  //if( req.valve0_state > 
-  set_valve[0]=req.valve0_state; 
-  set_valve[1]=req.valve1_state;
-  set_valve[2]=req.valve2_state; 
-  set_valve[3]=req.valve3_state;
-  set_valve[4]=req.valve4_state; 
-  set_valve[5]=req.valve5_state;
-  set_valve[6]=req.valve6_state; 
-  set_valve[7]=req.valve7_state;
 
-  shadowHexSetValves(&shadow_->dev, set_valve);
-  return true;
-
-}
-*/
 
 
 /*
@@ -1206,62 +1207,6 @@ bool ShadowNode::disController(shadow::DisableController::Request& req, shadow::
   ROS_INFO("SHADOW: Disabled controller for valve: %d",
 	   (unsigned short)req.Controller_valve);
 
-  return true;
-}
-
-bool ShadowNode::getStatus(shadow::GetStatus::Request& req, shadow::GetStatus::Response& resp)
-{
-  int i;
-
-  ROS_INFO("SHADOW: Retrieving module state");
-
-  shadow_mutex_.lock();
-  if( shadowHexStatus(shadow_) != 1){      
-    ROS_ERROR("SHADOW: Error when retrieving module state");
-    return false;
-  }
-  shadow_mutex_.unlock();
-  shadowPrintParams(&shadow_->par);
-
-  resp.TimeStamp[0] = shadow_->par.TimeStamp[0];
-  resp.TimeStamp[1] = shadow_->par.TimeStamp[1];
-  for(i=0;i<8;i++){
-    resp.Sensors[i]           = shadow_->par.Sensors[i];
-    resp.Targets[i]           = shadow_->par.Targets[i];
-    resp.ValveStates[i]       = shadow_->par.ValveStates[i];
-    resp.Controller_Sensor[i] = shadow_->par.Controller_Sensor[i];
-    resp.Controller_Target[i] = shadow_->par.Controller_Target[i];
-    resp.Controller_P[i]      = shadow_->par.Controller_P[i];
-    resp.Controller_I[i]      = shadow_->par.Controller_I[i];
-    resp.Controller_D[i]      = shadow_->par.Controller_D[i];
-  }
-
-  resp.SetValveStates    = shadow_->par.SetValveStates;
-  resp.ActualValveStates = shadow_->par.ActualValveStates;
-  resp.LATAreg           = shadow_->par.LATAreg;
-  resp.LATBreg           = shadow_->par.LATBreg; 
-  resp.ForceStates       = shadow_->par.ForceStates;
-
-  return true;
-}
-*/
-
-/*
-bool ShadowNode::getSensorReading(shadow::GetSensors::Request& req, shadow::GetSensors::Response& resp)
-{
-  int i;
-  unsigned short  sensor_val[8];
-
-  shadow_mutex_.lock();
-  // Read the sensor values
-  shadowHexReadSensors(&shadow_->dev,sensor_val);
-  resp.header.stamp = ros::Time::now();    
-  // Send the values
-  for(i=0;i < 8;i++)
-    resp.Sensors[i] = sensor_val[i];
-
-  shadow_mutex_.unlock();
-   
   return true;
 }
 

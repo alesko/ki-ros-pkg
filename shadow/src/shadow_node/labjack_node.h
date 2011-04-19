@@ -151,6 +151,8 @@ class LabjackNode
   bool getSensorReading(void);
   bool updateValves();
 
+ 
+
   // LabJack 
   HANDLE            h_device_;
   u6CalibrationInfo cali_info_;
@@ -160,7 +162,7 @@ class LabjackNode
   bool do_state_;
   int tdac_example();
   //int feedback_setup_example();
-  int SetDO(uint16 fio, uint16 eio, uint16 cio);
+  
 
   int packetCounter_ ;
   int totalPackets_ ;
@@ -195,6 +197,8 @@ const uint8 SamplesPerPacket = 25;  //Needs to be 25 to read multiple StreamData
   ros::Rate getPublishRate();
   void publish();
   bool isPublishing();
+  bool getAINdata(double data[14]);
+  int SetDO(uint16 fio, uint16 eio, uint16 cio);
 
   double volts2temperature(double volts);
   // Contoller commands
