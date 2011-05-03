@@ -103,6 +103,7 @@ LabjackNode::LabjackNode() : private_nh_("~"), publish_rate_(100) //init variabe
       ROS_ERROR("Unable to get calibration\n");
       exit(0);
     }
+ 
   //Getting calibration information from LJTDAC
   if(getTdacCalibrationInfo(h_device_, &cali_dac_info_, 2) < 0)  
     {
@@ -190,7 +191,7 @@ void LabjackNode::init()
   do_state_ = false;
   //last_update_ = -1.0;
   first_update_ = true;
-  ain_reading_pub_ = private_nh_.advertise<shadow::LJSensors>("/ain_msg",msg_que_len );
+  ain_reading_pub_ = private_nh_.advertise<shadow::LJSensors>("/labjack/ain_msg",msg_que_len );
   /*if (shadowDeviceConnectPort(&shadow_->dev) < 0) 
     {
       ROS_FATAL("Unable to connect shadow at %s\n", shadow_->dev.ttyport);
@@ -232,6 +233,8 @@ void LabjackNode::init()
   pulse_valves_srv_ = private_nh_.advertiseService("pulse_valves", &LabjackNode::pulseValves,this);
   targets_srv_ = private_nh_.advertiseService("set_targets", &LabjackNode::setTargets,this);
   publishing_srv_ = private_nh_.advertiseService("publishing_service", &LabjackNode::setPublishing,this);
+
+  temperature_srv_ = private_nh_.advertiseService("temperature", &LabjackNode::getTemperatureResistance,this);
 
   publishing_ = false;
 
@@ -330,6 +333,31 @@ bool LabjackNode::setTargets(shadow::LJSetTargets::Request& req, shadow::LJSetTa
 	    ROS_WARN("LabJack node: requested target for valve %d: %f is too large", i,req.targets[i]);
 	}
     }
+
+  return true;
+}
+
+bool LabjackNode::getTemperatureResistance(shadow::LJGetTemperature::Request& req, shadow::LJGetTemperature::Response& resp) 
+{
+
+  double dblVoltage;
+  int ain = req.ain_number;
+  int cur = req.current_number;
+  if (cur > 1)
+    ROS_ERROR("No current output with this number");
+  if (ain > 14)
+    ROS_ERROR("No analog input with number %d",ain);
+  
+  if((error_ = eAIN(h_device_, &cali_info_, ain, 15, &dblVoltage, 0, 0, 0, 0, 0, 0)) != 0)
+    {
+      ROS_WARN("Unable to aquire data");
+      return false;
+    }
+  
+  double res = dblVoltage/cali_info_.ccConstants[20+cur]; 
+  
+  resp.header.stamp = ros::Time::now();  
+  resp.temp_res = res;
 
   return true;
 }
@@ -1123,7 +1151,7 @@ double LabjackNode::volts2temperature(double volts)
   double t;
 
   int i=0;
-  double meas_res = volts/0.000200; // 200 milliamp
+  double meas_res = volts/cali_info_.ccConstants[21]; // 200 milliamp
   
   if( meas_res > 42733 )
     {
@@ -1180,12 +1208,8 @@ bool LabjackNode::spin()
       counter_++;
       //ROS_INFO("Counter %d",counter_);
       getAINdata(my_data);
-      ROS_INFO("My data");
-      for(i=0;i<14;i++)
-	{
-	  printf("%f  ",my_data[i]);
-	}
-      printf("\n");
+   
+  
   
     }
   

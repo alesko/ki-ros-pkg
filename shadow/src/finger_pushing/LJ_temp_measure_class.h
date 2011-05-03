@@ -34,67 +34,48 @@
  *
  *********************************************************************/
 
-#ifndef FINGER_PUSHING_CLASS_H_
-#define FINGER_PUSHING_CLASS_H_
+#ifndef TEMPERATURE_MEASURE_CLASS_H_
+#define TEMPERATURE_MEASURE_CLASS_H_
+
+#include <iostream>
+#include <string>
+#include <time.h>
+#include <stdio.h>
+#include <fstream>
+#include <iomanip>
 
 // services
-#include <shadow/SetController.h>
-#include <shadow/GetStatus.h>
-#include <shadow/GetSensors.h>
-#include <shadow/SetTargets.h>
-#include <shadow/DisableController.h>
-#include <shadow/PulseValves.h>
-#include <shadow/StartPublishing.h>
-#include <shadow/SetValves.h>
-#include <shadow/ShadowSensors.h>
+
 #include <shadow/LJGetTemperature.h>
 
-class FingerPushing
+class TemperatureMeasure 
 {
 private:
-  // Data types to communicate with the Shadow node
-  shadow::StartPublishing spcu_publishing_state_;
-  shadow::PulseValves spcu_valve_pulse_;
-  shadow::SetValves spcu_valve_states_;
-  shadow::SetTargets spcu_target_values_;
-  shadow::SetController spcu_controller_values_;
-  shadow::DisableController spcu_controller_disable_;
-  
+  // This will change soon
   shadow::LJGetTemperature labjack_temperature_;
 
-  // Services for sending commands to the SPCU
-  ros::ServiceClient spcu_client_pulse_valves_;
-  ros::ServiceClient spcu_client_targets_;
-  ros::ServiceClient spcu_client_publisher_;
-  ros::ServiceClient spcu_client_valves_;
-  ros::ServiceClient spcu_client_controller_;
-  ros::ServiceClient spcu_disable_controller_;
-
   ros::ServiceClient labjack_temperature_client_;
-  
-  // Subscriber to subscribe to sensordata
-  ros::Subscriber spcu_shadow_sensor_sub_;
+
+  double temp_;
 
   ros::Rate loop_rate_;
+
+
+  ros::Duration time_;
+  ros::Time start_time_; 
+
+  std::ofstream data_file_; // Data storange
+  char* path_;
 
 public:
   
   ros::NodeHandle nh_;
 
-  FingerPushing();
-  ~FingerPushing(void);
-  bool init();
-  bool fill_pam();
-  bool empty_pam();
-  bool wait_button_push(int number, double delay);
-  double record_sensor_data(int sensor,int number_of_recordings);
-  int record_max_sensor_data_time(int sensor,float duration);
-  bool set_controller(int controller, int sensor, int p, int i, int d);
-  bool set_target(int controller, int target, int tol);
-  bool disable_controller(int controller);
-  void interprete_case(unsigned int test_case, int& type, double& scale);
-  bool measure_baseline(int sensor,int current_baseline, double tol);
+  TemperatureMeasure(void);
+  ~TemperatureMeasure(void);
+  bool init_loggfile(char *path);
   double get_temperature(int ain_ch, int curr_n); // Returns the temperature read from a resistance probe connected to labjack
+
 };
 
 #endif
