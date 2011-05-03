@@ -168,24 +168,25 @@ class LabjackNode
   int packetCounter_ ;
   int totalPackets_ ;
   /*
-const uint8 NumChannels = 5;        //For this example to work proper, SamplesPerPacket needs
-                                    //to be a multiple of NumChannels.
-const uint8 SamplesPerPacket = 25;  //Needs to be 25 to read multiple StreamData responses
-                                    //in one large packet, otherwise can be any value between
-                                    //1-25 for 1 StreamData response per packet.
-				    */
+    const uint8 NumChannels = 5;        //For this example to work proper, SamplesPerPacket needs
+    //to be a multiple of NumChannels.
+    const uint8 SamplesPerPacket = 25;  //Needs to be 25 to read multiple StreamData responses
+    //in one large packet, otherwise can be any value between
+    //1-25 for 1 StreamData response per packet.
+    */
   uint8 NumChannels_;        //For this example to work proper, SamplesPerPacket needs
-                                    //to be a multiple of NumChannels.
+  //to be a multiple of NumChannels.
   uint8 SamplesPerPacket_;  //Needs to be 25 to read multiple StreamData responses
-                                    //in one large packet, otherwise can be any value between
-                                    //1-25 for 1 StreamData response per packet.
+  //in one large packet, otherwise can be any value between
+  //1-25 for 1 StreamData response per packet.
   int ConfigIO();
- int StreamConfig();
- int StreamStart();
- int StreamData();
- int StreamStop();
-   uint16 scanInterval_;
- public:
+  int StreamConfig();
+  int StreamStart();
+  int StreamData();
+  int StreamStop();
+  uint16 scanInterval_;
+  
+public:
 
   LabjackNode(); //Constructor
   LabjackNode(std::string dev); //Constuctor with args
@@ -199,7 +200,7 @@ const uint8 SamplesPerPacket = 25;  //Needs to be 25 to read multiple StreamData
   void publish();
   bool isPublishing();
   bool getAINdata(double data[14]);
-  int SetDO(uint16 fio, uint16 eio, uint16 cio);
+  int SetDO(uint8 fio, uint8 eio, uint8 cio);
 
   double volts2temperature(double volts);
   // Contoller commands
