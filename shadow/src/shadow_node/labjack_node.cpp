@@ -460,7 +460,7 @@ int LabjackNode::tdac_example() //HANDLE hDevice, u6TdacCalibrationInfo *caliInf
 
 //Sends a Feedback low-level command that configures digital directions,
 
-int LabjackNode::SetDO(uint16 fio, uint16 eio, uint16 cio) 
+int LabjackNode::SetDO(uint8 fio, uint8 eio, uint8 cio) 
 {
   uint8 sendBuff[14], recBuff[10]; //
     int sendChars, recChars;
