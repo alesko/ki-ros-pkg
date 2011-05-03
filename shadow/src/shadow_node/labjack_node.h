@@ -79,6 +79,7 @@
 #include <shadow/SetValves.h>  */
 #include <shadow/LJPulseValves.h>
 #include <shadow/LJSetTargets.h>
+#include <shadow/LJGetTemperature.h>
 #include <shadow/StartPublishing.h> //StartPublishing is a service, .h is generated
 #define NUM_VALVES 10
 
@@ -120,6 +121,7 @@ class LabjackNode
   ros::ServiceServer disable_contoller_srv_;
   ros::ServiceServer targets_srv_;
   ros::ServiceServer publishing_srv_;
+  ros::ServiceServer temperature_srv_;
 
   // SPCU commands
   //bool setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp);
@@ -132,7 +134,8 @@ class LabjackNode
   //bool getStatus(shadow::GetStatus::Request& req, shadow::GetStatus::Response& resp);
   
   bool setPublishing(shadow::StartPublishing::Request &req, shadow::StartPublishing::Response &resp);
-  
+  bool getTemperatureResistance(shadow::LJGetTemperature::Request& req, shadow::LJGetTemperature::Response& resp); 
+
   // Controller stuff
   /*control_toolbox::Pid pid_controller_;
   ros::Time time_of_last_cycle_;
@@ -185,14 +188,13 @@ class LabjackNode
   int StreamData();
   int StreamStop();
   uint16 scanInterval_;
-  
-public:
+
+ public:
 
   LabjackNode(); //Constructor
   LabjackNode(std::string dev); //Constuctor with args
   ~LabjackNode(); //Destructor
   void init();
-
   bool spin();
   
   bool getNodeStateOK();

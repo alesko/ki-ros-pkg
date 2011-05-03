@@ -7,7 +7,7 @@
   <author>Alexander Skoglund</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <versioncontrol type="git" url="https://github.com/alesko/KIROS/tree/master/dataglove" />
+  <versioncontrol type="git" url="https://github.com/alesko/ki-ros-pkg/tree/master/dataglove" />
   <url>http://ros.org/wiki/dataglove</url>
   <depend package="roslib"/>
   <depend package="rospy"/>

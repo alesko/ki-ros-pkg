@@ -57,7 +57,10 @@ rosbuild_add_executable(finger_pushing_clear src/finger_pushing/finger_pushing_c
 target_link_libraries(finger_pushing_clear shadow)
 #rosbuild_add_executable(finger_pushing_cal src/finger_pushing/finger_pushing_cal.cpp) # src/shadow_node/shadow_node.cpp)
 #target_link_libraries(finger_pushing_cal shadow)
-
+#rosbuild_add_executable(test_temp src/finger_pushing/test_temp.cpp src/finger_pushing/finger_pushing_class.cpp)
+#target_link_libraries(test_temp shadow)
+rosbuild_add_executable(temp_measure src/finger_pushing/test_temp.cpp src/finger_pushing/LJ_temp_measure_class.cpp)
+target_link_libraries(temp_measure shadow)
 
 #rosbuild_add_executable(shadow_FC src/shadow_node/shadow_FC.cpp)
 #rosbuild_add_link_flags(shadow_FC -llabjackusb)
