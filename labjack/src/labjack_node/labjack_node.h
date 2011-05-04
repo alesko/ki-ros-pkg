@@ -148,7 +148,7 @@ class LabjackClass
   int  set_target_[NUM_VALVES];
   */
   // Messange
-  labjack::LJSensors ain_msg_;
+  labjack::Sensors ain_msg_;
   double ain_[14];
   double target_values_[NUM_VALVES];
   bool getSensorReading(void);
