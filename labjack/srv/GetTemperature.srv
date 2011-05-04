@@ -1,0 +1,10 @@
+#
+#
+#
+int8       ain_number      # where is the sensor pluged in
+int8       current_number  # current supply number 0 =  10 uA
+                           #                       1 = 200 uA
+---
+Header     header          # header
+float64    temp_res        # temperature resistance, use lookup table 
+		           # linear interpolation to get better resolution 
