@@ -1,0 +1,8 @@
+#
+# Resturns the calibrated current value
+#
+
+---
+float64    cal_current_10uA
+float64    cal_current_200uA
+
