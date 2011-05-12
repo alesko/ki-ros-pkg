@@ -47,6 +47,7 @@
 // services
 
 #include <labjack/GetTemperature.h>
+#include <labjack/GetCurrents.h>
 
 class TemperatureMeasure 
 {
@@ -67,6 +68,9 @@ private:
   std::ofstream data_file_; // Data storange
   char* path_;
 
+  double cal_200uA_;
+  double cal_10uA_;
+  
 public:
   
   ros::NodeHandle nh_;

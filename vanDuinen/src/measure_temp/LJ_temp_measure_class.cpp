@@ -52,7 +52,16 @@ TemperatureMeasure::TemperatureMeasure(void):loop_rate_(100)
 
   start_time_ = ros::Time::now();
   labjack_temperature_client_ = nh_.serviceClient<labjack::GetTemperature>("/labjack/temperature");
-  
+
+  // Call the service get the calibrated currents
+  ros::ServiceClient labjack_current_client = nh_.serviceClient<labjack::GetTemperature>("/labjack/cal_currents");
+  labjack::GetCurrent cal_currents;
+  if (!labjack_current_client.call())
+    ROS_ERROR("Failed to call labjack calibrated current service");
+  double temp_res = labjack_temperature_.response.temp_res;
+  double cal_200uA_ = cal_currents.cal_current_10uA;
+  double cal_10uA_= cal_currents.cal_current_200uA;
+
   // set path for data storage
   //std::string full_topic = prefix_ + "/path_to_spcu";
   /*std::string topic = "/temperature/path_to_data";

@@ -80,7 +80,7 @@
 #include <labjack/PulseValves.h>
 #include <labjack/SetTargets.h>
 #include <labjack/GetTemperature.h>
-#include <labjack/GetCurrent.h>
+#include <labjack/GetCurrents.h>
 #include <labjack/StartPublishing.h> //StartPublishing is a service, .h is generated
 
 
@@ -137,7 +137,7 @@ class LabjackClass
   
   bool setPublishing(labjack::StartPublishing::Request &req, labjack::StartPublishing::Response &resp);
   bool getTemperatureResistance(labjack::GetTemperature::Request& req, labjack::GetTemperature::Response& resp); 
-  bool getgetCalibratedCurrents(labjack::GetCurrents::Request& req, labjack::GetCurrents::Response& resp);
+  bool getCalibratedCurrents(labjack::GetCurrents::Request& req, labjack::GetCurrents::Response& resp);
   // Controller stuff
   /*control_toolbox::Pid pid_controller_;
   ros::Time time_of_last_cycle_;

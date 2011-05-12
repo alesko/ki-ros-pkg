@@ -267,22 +267,6 @@ bool LabjackClass::getSensorReading(void)
 	}       
       ain_[i] = dblVoltage;
     }
-  //ROS_INFO("Read data %f",dblVoltage);
-  
- 
-  //int i;
-  //unsigned short  sensor_val[8];
-
-  /*shadow_mutex_.lock();
-  // Read the sensor values
-  shadowHexReadSensors(&shadow_->dev,sensor_val);
-  resp.header.stamp = ros::Time::now();    
-  // Send the values
-  for(i=0;i < 8;i++)
-    resp.Sensors[i] = sensor_val[i];
-
-  shadow_mutex_.unlock();
-  */
 
   return true;
 
@@ -361,7 +345,7 @@ bool LabjackClass::getTemperatureResistance(labjack::GetTemperature::Request& re
   return true;
 }
 
-bool LabjackClass::getgetCalibratedCurrents(labjack::GetCurrents::Request& req, labjack::GetCurrents::Response& resp) 
+bool LabjackClass::getCalibratedCurrents(labjack::GetCurrents::Request& req, labjack::GetCurrents::Response& resp) 
 {
 
   resp.cal_current_10uA  = cali_info_.ccConstants[20]; 
@@ -391,7 +375,6 @@ bool LabjackClass::setPublishing(labjack::StartPublishing::Request& req, labjack
       publishing_ = false;
       resp.state = false;
      }
-  //this->pub->cyberglove_pub.shutdown();
   return true;
 }
 
@@ -415,12 +398,15 @@ void LabjackClass::publish()
 
   ain_msg_.header.stamp = ros::Time::now();    
    // Put the values into a message
-  for( i=0; i < 14; i++)
+  labjack_mutex_.lock();
+  //for( i=0; i < 14; i++)
+  for( i=0; i < 1; i++)
     {
-      labjack_mutex_.lock();
+      //labjack_mutex_.lock();
       ain_msg_.ain[i] = ain_[i];
-      labjack_mutex_.unlock();
+      //labjack_mutex_.unlock();
     }
+  labjack_mutex_.unlock();
   ain_reading_pub_.publish(ain_msg_);
   //ain_reading_pub_.publush();
 
@@ -781,7 +767,12 @@ int LabjackClass::StreamConfig()
                                     // Bit 3: Internal stream clock frequency = b0: 4 MHz
                                     // Bit 1: Divide Clock by 256 = b0
 
-    scanInterval_ = 4000;
+    //scanInterval_ = 800;    // 40 Hz
+    //scanInterval_ = 600;    // 53 Hz
+    scanInterval_ = 500;      // 64 Hz
+    //scanInterval_ = 400;    // 78 Hz
+    //scanInterval_ = 300;    // 75 Hz
+    //scanInterval_ = 4000;   // 8  Hz
     sendBuff[12] = (uint8)(scanInterval_&(0x00FF));  //scan interval (low byte)
     sendBuff[13] = (uint8)(scanInterval_/256);       //scan interval (high byte)
 
@@ -1059,13 +1050,14 @@ int LabjackClass::StreamData()
     //ROS_INFO("Total packets read: %d", totalPackets_);
     //ROS_INFO("Current PacketCounter: %d", ((packetCounter_ == 0) ? 255 : packetCounter_-1));
     //ROS_INFO("Current BackLog: %d", backLog);
-    
+    labjack_mutex_.lock();
     for(k = 0; k < NumChannels_; k++)
       {
-	labjack_mutex_.lock();
+	//labjack_mutex_.lock();
 	ain_[k] = voltages[scanNumber - 1][k];
-	labjack_mutex_.unlock();
+	//	labjack_mutex_.unlock();
       }
+    labjack_mutex_.unlock();
     //  ROS_INFO("  AI%d: %.4f V", k, voltages[scanNumber - 1][k]);
     //}
     
@@ -1215,7 +1207,7 @@ bool LabjackClass::spin()
       // Increase the "clock" by one tick
       counter_++;
       //ROS_INFO("Counter %d",counter_);
-      getAINdata(my_data);
+      //getAINdata(my_data);
    
   
   
