@@ -80,7 +80,10 @@
 #include <labjack/PulseValves.h>
 #include <labjack/SetTargets.h>
 #include <labjack/GetTemperature.h>
+#include <labjack/GetCurrent.h>
 #include <labjack/StartPublishing.h> //StartPublishing is a service, .h is generated
+
+
 #define NUM_VALVES 10
 
 class LabjackClass
@@ -121,7 +124,7 @@ class LabjackClass
   ros::ServiceServer targets_srv_;
   ros::ServiceServer publishing_srv_;
   ros::ServiceServer temperature_srv_;
-
+  ros::ServiceServer currents_srv_;
   // SPCU commands
   //bool setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp);
   bool pulseValves(labjack::PulseValves::Request& req, labjack::PulseValves::Response& resp);
@@ -134,7 +137,7 @@ class LabjackClass
   
   bool setPublishing(labjack::StartPublishing::Request &req, labjack::StartPublishing::Response &resp);
   bool getTemperatureResistance(labjack::GetTemperature::Request& req, labjack::GetTemperature::Response& resp); 
-
+  bool getgetCalibratedCurrents(labjack::GetCurrents::Request& req, labjack::GetCurrents::Response& resp);
   // Controller stuff
   /*control_toolbox::Pid pid_controller_;
   ros::Time time_of_last_cycle_;

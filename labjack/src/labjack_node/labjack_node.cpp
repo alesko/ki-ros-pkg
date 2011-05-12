@@ -233,6 +233,7 @@ void LabjackClass::init()
   publishing_srv_ = private_nh_.advertiseService("publishing_service", &LabjackClass::setPublishing,this);
 
   temperature_srv_ = private_nh_.advertiseService("temperature", &LabjackClass::getTemperatureResistance,this);
+  currents_srv_ = private_nh_.advertiseService("cal_currents", &LabjackClass::getCalibratedCurrents,this);
 
   publishing_ = false;
 
@@ -356,6 +357,15 @@ bool LabjackClass::getTemperatureResistance(labjack::GetTemperature::Request& re
   
   resp.header.stamp = ros::Time::now();  
   resp.temp_res = res;
+
+  return true;
+}
+
+bool LabjackClass::getgetCalibratedCurrents(labjack::GetCurrents::Request& req, labjack::GetCurrents::Response& resp) 
+{
+
+  resp.cal_current_10uA  = cali_info_.ccConstants[20]; 
+  resp.cal_current_200uA = cali_info_.ccConstants[21]; 
 
   return true;
 }
