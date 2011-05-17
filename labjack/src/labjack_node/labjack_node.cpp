@@ -190,6 +190,8 @@ void LabjackClass::init()
   //last_update_ = -1.0;
   first_update_ = true;
   ain_reading_pub_ = private_nh_.advertise<labjack::Sensors>("/labjack/ain_msg",msg_que_len );
+
+
   /*if (shadowDeviceConnectPort(&shadow_->dev) < 0) 
     {
       ROS_FATAL("Unable to connect shadow at %s\n", shadow_->dev.ttyport);
@@ -234,6 +236,7 @@ void LabjackClass::init()
 
   temperature_srv_ = private_nh_.advertiseService("temperature", &LabjackClass::getTemperatureResistance,this);
   currents_srv_ = private_nh_.advertiseService("cal_currents", &LabjackClass::getCalibratedCurrents,this);
+  ain_srv_ = private_nh_.advertiseService("get_ain", &LabjackClass::getAIN,this);
 
   publishing_ = false;
 
@@ -272,6 +275,41 @@ bool LabjackClass::getSensorReading(void)
 
  }
 
+bool LabjackClass::getAIN(labjack::GetAIN::Request& req, labjack::GetAIN::Response& resp)
+{   
+  int i;
+  
+  double dblVoltage;
+  for(int i=0; i <14; i++)
+    {
+      if((error_ = eAIN(h_device_, &cali_info_, i, 15, &dblVoltage, 0, 0, 0, 0, 0, 0)) != 0)
+	{
+	  ROS_WARN("Unable to aquire data");
+	  exit(0);
+	}       
+      //ain_[i] = dblVoltage;
+      resp.ain[i]= dblVoltage;
+    }
+  
+  return true;
+
+/*
+  for(i=0; i < NUM_VALVES; i++)
+    {
+      // Do proper round
+      high_time_[i] = (int) (req.valve_p[i] * rate_ + 0.5); //(1.0/((publish_rate_.expectedCycleTime() ).toSec() ) ) +0.5); 
+      //(publish_rate_ * req.valve_p[i]);
+      if( req.valve_p[i] < 0.05)
+	high_time_[i] = 0; //(int) (0.05 * (1.0/((publish_rate_.expectedCycleTime() ).toSec() ) )+0.5); //(publish_rate_ * 0.05);
+      if( req.valve_p[i] > 1.00)
+	high_time_[i] = rate_;//(int) (1.0/((publish_rate_.expectedCycleTime() ).toSec() ) +0.5);
+      resp.valve_p[i] = (double)high_time_[i]/(double)(rate_); //(publish_rate_.expectedCycleTime() ).toSec() ) ;
+    }
+  ROS_INFO("hugh_time_[0]=%d",high_time_[0]);
+*/
+
+  //return true;
+}
 
 bool LabjackClass::pulseValves(labjack::PulseValves::Request& req, labjack::PulseValves::Response& resp)
 {   
