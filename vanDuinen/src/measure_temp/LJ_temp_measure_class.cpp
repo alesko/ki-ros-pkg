@@ -44,6 +44,25 @@
  
 #include "LJ_temp_measure_class.h"
 
+boost::mutex g_labjack_mutex ; //GCLOBAL
+double g_ain_data[14];
+
+// Callback function, not part of class!
+void LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg)
+{
+  int i;
+  ros::Time t = msg->header.stamp;
+  
+  //g_labjack_mutex.lock();
+  for(i=0; i < 14;i++)
+    {
+      g_ain_data[i] = msg->ain[i];
+      //ROS_INFO("%lf",g_ain_data[0]);
+    }
+  //g_labjack_mutex.unlock();
+  
+
+}
 
 TemperatureMeasure::TemperatureMeasure(void):loop_rate_(100)
 {
@@ -52,15 +71,16 @@ TemperatureMeasure::TemperatureMeasure(void):loop_rate_(100)
 
   start_time_ = ros::Time::now();
   labjack_temperature_client_ = nh_.serviceClient<labjack::GetTemperature>("/labjack/temperature");
+  labjack_ain_sub_ = nh_.subscribe("/labjack/ain_msg", 100,LabjackMsgCallback );
 
   // Call the service get the calibrated currents
-  ros::ServiceClient labjack_current_client = nh_.serviceClient<labjack::GetTemperature>("/labjack/cal_currents");
-  labjack::GetCurrent cal_currents;
-  if (!labjack_current_client.call())
+  ros::ServiceClient labjack_current_client = nh_.serviceClient<labjack::GetCurrents>("/labjack/cal_currents");
+  labjack::GetCurrents cal_currents;
+  if (!labjack_current_client.call(cal_currents))
     ROS_ERROR("Failed to call labjack calibrated current service");
-  double temp_res = labjack_temperature_.response.temp_res;
-  double cal_200uA_ = cal_currents.cal_current_10uA;
-  double cal_10uA_= cal_currents.cal_current_200uA;
+  //double temp_res = labjack_temperature_.response.temp_res;
+  cal_200uA_ = cal_currents.response.cal_current_10uA;
+  cal_10uA_= cal_currents.response.cal_current_200uA;
 
   // set path for data storage
   //std::string full_topic = prefix_ + "/path_to_spcu";
@@ -78,6 +98,8 @@ TemperatureMeasure::TemperatureMeasure(void):loop_rate_(100)
   */
 
 }
+
+
 
 TemperatureMeasure::~TemperatureMeasure(void)
 {
@@ -153,3 +175,10 @@ double TemperatureMeasure::get_temperature(int ain_ch, int curr_n)
   
 }
 
+/*double TemperatureMeasure::get_resistance(int ain_ch, int curr_n)
+{
+
+  
+
+}
+*/

@@ -44,6 +44,10 @@
 #include <fstream>
 #include <iomanip>
 
+// Messages
+
+#include <labjack/Sensors.h>
+
 // services
 
 #include <labjack/GetTemperature.h>
@@ -56,6 +60,7 @@ private:
   labjack::GetTemperature labjack_temperature_;
 
   ros::ServiceClient labjack_temperature_client_;
+  ros::Subscriber labjack_ain_sub_;
 
   double temp_;
 

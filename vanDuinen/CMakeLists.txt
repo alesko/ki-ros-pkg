@@ -61,6 +61,8 @@ target_link_libraries(finger_pushing_clear shadow)
 #target_link_libraries(test_temp shadow)
 rosbuild_add_executable(temp_measure src/measure_temp/temp_measure.cpp src/measure_temp/LJ_temp_measure_class.cpp)
 target_link_libraries(temp_measure )
+rosbuild_add_executable(gsr_measure src/measure_temp/gsr_measure.cpp src/measure_temp/LJ_gsr_measure_class.cpp)
+target_link_libraries(gsr_measure)
 
 #rosbuild_add_executable(shadow_FC src/shadow_node/shadow_FC.cpp)
 #rosbuild_add_link_flags(shadow_FC -llabjackusb)
