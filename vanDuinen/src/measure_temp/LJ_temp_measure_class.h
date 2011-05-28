@@ -63,7 +63,7 @@ private:
   ros::ServiceClient labjack_temperature_client_;
   ros::Subscriber labjack_ain_sub_;
   ros::Publisher data_pub_;
-  double temp_;
+  //double temp_;
 
   ros::Rate loop_rate_;
 

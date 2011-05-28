@@ -117,12 +117,12 @@ void TemperatureMeasure::publish()
    // Put the values into a message
   temp_msg_.header.stamp = ros::Time::now();
 
-  g_labjack_mutex_.lock();
+  g_labjack_mutex.lock();
   for( i=0; i < num_temp; i++)
     {
-      temp_msg_.ain[i] = g_ain_data[i];
+      temp_msg_.temperature[i] = g_ain_data[i];
     }
-  g_labjack_mutex_.unlock();
+  g_labjack_mutex.unlock();
 
   // Publish the values
   data_pub_.publish(temp_msg_);
@@ -187,13 +187,13 @@ double TemperatureMeasure::get_temperature(int ain_ch, int curr_n)
     i++;
  
   // Picse wise linear approximation:
-  temp_ =((temp_res-resistance[i])*(temp[i+1]-temp[i])/(resistance[i+1]-resistance[i]))+temp[i];
+  temp_[0] =((temp_res-resistance[i])*(temp[i+1]-temp[i])/(resistance[i+1]-resistance[i]))+temp[i];
 
-  data_file_ << time_.toSec() << "\t" << temp_ << std::endl;
+  data_file_ << time_.toSec() << "\t" << temp_[0] << std::endl;
 
-  ROS_INFO("Time %f temp %lf",time_.toSec(),temp_);
+  ROS_INFO("Time %f temp %lf",time_.toSec(),temp_[0]);
 
-  return temp_;
+  return temp_[0];
   
 }
 

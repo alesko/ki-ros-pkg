@@ -165,12 +165,12 @@ void SkinConductanceMeasure::publish()
    // Put the values into a message
   gsr_msg_.header.stamp = ros::Time::now();
 
-  g_labjack_mutex_.lock();
+  g_labjack_mutex.lock();
   for( i=0; i < num_temp; i++)
     {
-      gsr_msg_.ain[i] = g_ain_data[i];
+      gsr_msg_.gsr[i] = g_ain_data[i];
     }
-  g_labjack_mutex_.unlock();
+  g_labjack_mutex.unlock();
 
   // Publish the values
   data_pub_.publish(gsr_msg_);
