@@ -45,8 +45,8 @@
 #include <iomanip>
 
 // Messages
-
 #include <labjack/Sensors.h>
+#include <vanDuinen/gsr.h>
 
 // services
 
@@ -66,6 +66,7 @@ private:
   //ros::ServiceClient labjack_ain_client_;
   ros::Subscriber labjack_ain_sub_;
   labjack::StartPublishing pub_msg_;
+  ros::Publisher data_pub_;
   //double temp_;
 
   ros::Rate loop_rate_;
@@ -80,6 +81,10 @@ private:
   double cal_200uA_;
   double cal_10uA_;
   double resistance_ref_;
+
+  vanDuinen::gsr gsr_msg_;
+  double gsr_[14];
+
 public:
   
   ros::NodeHandle nh_;

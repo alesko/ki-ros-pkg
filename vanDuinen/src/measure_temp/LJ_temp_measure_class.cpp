@@ -53,14 +53,14 @@ void LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg)
   int i;
   ros::Time t = msg->header.stamp;
   
-  //g_labjack_mutex.lock();
+  g_labjack_mutex.lock();
   for(i=0; i < 14;i++)
     {
       g_ain_data[i] = msg->ain[i];
       //ROS_INFO("%lf",g_ain_data[0]);
     }
-  //g_labjack_mutex.unlock();
-  
+  g_labjack_mutex.unlock();
+  //ain_msg_.header.stamp = ros::Time::now();
 
 }
 
@@ -107,6 +107,28 @@ TemperatureMeasure::~TemperatureMeasure(void)
   // Close loggfile
   data_file_.close();
 }
+
+void TemperatureMeasure::publish()
+{
+
+  int num_temp = 1;
+  int i;
+
+   // Put the values into a message
+  temp_msg_.header.stamp = ros::Time::now();
+
+  g_labjack_mutex_.lock();
+  for( i=0; i < num_temp; i++)
+    {
+      temp_msg_.ain[i] = g_ain_data[i];
+    }
+  g_labjack_mutex_.unlock();
+
+  // Publish the values
+  data_pub_.publish(temp_msg_);
+
+}
+
 
 bool TemperatureMeasure::init_loggfile(char* path)
 {

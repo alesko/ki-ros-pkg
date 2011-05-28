@@ -55,17 +55,15 @@ void LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg)
   int i;
   ros::Time t = msg->header.stamp;
   
-  //g_labjack_mutex.lock();
+  g_labjack_mutex.lock();
   for(i=0; i < 14;i++)
     {
       g_ain_data[i] = msg->ain[i];
       //ROS_INFO("%lf",g_ain_data[0]);
     }
+  g_labjack_mutex.unlock();
   double r=g_ain_data[0]/g_cur_ref;
   ROS_INFO("Conductance is%lf",1/((g_res_ref*r)/(g_res_ref-r)));
-
-  //g_labjack_mutex.unlock();
-  
 
 }
 
@@ -78,7 +76,7 @@ SkinConductanceMeasure::SkinConductanceMeasure(void):loop_rate_(100)
   //labjack_temperature_client_ = nh_.serviceClient<labjack::GetTemperature>("/labjack/temperature");
   labjack_publishing_client_ = nh_.serviceClient<labjack::StartPublishing>("/labjack/publishing_service");
 
-  labjack_ain_sub_ = nh_.subscribe("/labjack/ain_msg", 100,LabjackMsgCallback );
+
 
   // Call the service get the calibrated currents
   ros::ServiceClient labjack_current_client = nh_.serviceClient<labjack::GetCurrents>("/labjack/cal_currents");
@@ -105,6 +103,9 @@ SkinConductanceMeasure::SkinConductanceMeasure(void):loop_rate_(100)
     ROS_ERROR("Failed to call labjack publishing service");
   if(pub_msg_.response.state == true)
     ROS_INFO("Labjack should now publish it's data");
+
+  // Set up callback 
+  labjack_ain_sub_ = nh_.subscribe("/labjack/ain_msg", 100,LabjackMsgCallback );
 
   // set path for data storage
   //std::string full_topic = prefix_ + "/path_to_spcu";
@@ -154,6 +155,28 @@ bool SkinConductanceMeasure::init_loggfile(char* path)
 
   return true;
 }
+
+void TemperatureMeasure::publish()
+{
+
+  int num_temp = 1;
+  int i;
+
+   // Put the values into a message
+  gsr_msg_.header.stamp = ros::Time::now();
+
+  g_labjack_mutex_.lock();
+  for( i=0; i < num_temp; i++)
+    {
+      gsr_msg_.ain[i] = g_ain_data[i];
+    }
+  g_labjack_mutex_.unlock();
+
+  // Publish the values
+  data_pub_.publish(gsr_msg_);
+
+}
+
 
 /*
 double SkinConductanceMeasure::get_temperature(int ain_ch, int curr_n)

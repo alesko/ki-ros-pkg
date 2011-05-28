@@ -47,6 +47,7 @@
 // Messages
 
 #include <labjack/Sensors.h>
+#include <vanDuinen/temp.h>
 
 // services
 
@@ -61,7 +62,7 @@ private:
 
   ros::ServiceClient labjack_temperature_client_;
   ros::Subscriber labjack_ain_sub_;
-
+  ros::Publisher data_pub_;
   double temp_;
 
   ros::Rate loop_rate_;
@@ -76,6 +77,9 @@ private:
   double cal_200uA_;
   double cal_10uA_;
   
+  vanDuinen::temp temp_msg_;
+  double temp_[14];
+
 public:
   
   ros::NodeHandle nh_;
