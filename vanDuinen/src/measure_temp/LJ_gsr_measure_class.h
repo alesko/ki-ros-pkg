@@ -91,7 +91,7 @@ public:
 
   SkinConductanceMeasure(void);
   ~SkinConductanceMeasure(void);
- 
+  void publish();
   bool init_loggfile(char *path);
   //double get_temperature(int ain_ch, int curr_n); // Returns the temperature read from a resistance probe connected to labjack
 

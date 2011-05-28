@@ -156,7 +156,7 @@ bool SkinConductanceMeasure::init_loggfile(char* path)
   return true;
 }
 
-void TemperatureMeasure::publish()
+void SkinConductanceMeasure::publish()
 {
 
   int num_temp = 1;
