@@ -139,7 +139,7 @@ void TemperatureMeasure::publish()
   else
     c200uA = true;
   // Put the values into a message
-  temp_msg_.header.stamp = g_time;//ros::Time::now();
+  temp_msg_.header.stamp = g_time; //ros::Time::now();
 
   g_labjack_mutex.lock();
   for( i=starting_channel_; i < (number_of_channels_+starting_channel_); i++)
@@ -166,7 +166,7 @@ void TemperatureMeasure::spin()
 	{
 	  publish();
 	} 
-      time_ = ros::Time::now() - start_time_;
+      time_ = g_time - start_time_t; //ros::Time::now() - start_time_;
       data_file_ << time_.toSec() << "\t" << volt2temperature(g_ain_data[3],true) << std::endl;
       
       //ROS_INFO("Time %f temp %lf",time_.toSec(),lintemp);
