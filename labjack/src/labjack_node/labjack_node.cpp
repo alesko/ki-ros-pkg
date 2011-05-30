@@ -437,8 +437,8 @@ void LabjackClass::publish()
   ain_msg_.header.stamp = ros::Time::now();    
    // Put the values into a message
   labjack_mutex_.lock();
-  //for( i=0; i < 14; i++)
-  for( i=0; i < 1; i++)
+  for( i=0; i < 14; i++)
+    //for( i=0; i < 1; i++)
     {
       //labjack_mutex_.lock();
       ain_msg_.ain[i] = ain_[i];
@@ -1207,7 +1207,7 @@ double LabjackClass::volts2temperature(double volts)
  
   // Picse wise linear approximation:
   t=((meas_res-resistance[i])*(temp[i+1]-temp[i])/(resistance[i+1]-resistance[i]))+temp[i];
-  //ROS_INFO("Res %f, i=%d  %f %f temp %f",meas_res,i,resistance[i],resistance[i+1], t);
+  //Ros_INFO("Res %f, i=%d  %f %f temp %f",meas_res,i,resistance[i],resistance[i+1], t);
 
   return t;
 

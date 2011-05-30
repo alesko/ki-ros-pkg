@@ -52,7 +52,10 @@ int main(int argc, char **argv)
 
   // Create the object
   ros::Time::init();
-  TemperatureMeasure LJ_temp;
+
+  // Current channel 0= 10uA, 1 200 uA, 
+  // AIN 3 and "range"
+  TemperatureMeasure LJ_temp(1,3,1); 
   double temp;
   if(argc > 1)
     {      
@@ -68,14 +71,16 @@ int main(int argc, char **argv)
   int ain_channel = 3;
   int curr_number = 1;
 
+  LJ_temp.spin();
+  /*
   ros::Rate loop_rate(1);
 
-  while(ros::ok())
+    while(ros::ok())
     {
       loop_rate.sleep();
       ros::spinOnce();
       temp = LJ_temp.get_temperature( ain_channel, curr_number);
       
     }
-
+  */
 }

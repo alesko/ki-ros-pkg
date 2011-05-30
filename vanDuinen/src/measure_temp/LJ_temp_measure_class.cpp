@@ -56,21 +56,28 @@ void LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg)
   g_labjack_mutex.lock();
   for(i=0; i < 14;i++)
     {
-      g_ain_data[i] = msg->ain[i];
-      //ROS_INFO("%lf",g_ain_data[0]);
+      g_ain_data[i] = msg->ain[i];  
     }
   g_labjack_mutex.unlock();
+  //ROS_INFO("%lf",g_ain_data[3]);
   //ain_msg_.header.stamp = ros::Time::now();
 
 }
 
-TemperatureMeasure::TemperatureMeasure(void):loop_rate_(100)
+// Current channel is set to one or 2
+TemperatureMeasure::TemperatureMeasure(int cur_n, int ch_start, int ch_num):loop_rate_(5)
+//TemperatureMeasure::TemperatureMeasure():loop_rate_(5)
 {
   std::string the_path;
+  current_channel_ = cur_n;
+  starting_channel_ = ch_start;
+  number_of_channels_ = ch_num;
+  
   ROS_INFO("Creating a temperature node");
 
   start_time_ = ros::Time::now();
-  labjack_temperature_client_ = nh_.serviceClient<labjack::GetTemperature>("/labjack/temperature");
+  //labjack_temperature_client_ = nh_.serviceClient<labjack::GetTemperature>("/labjack/temperature");
+  
   labjack_ain_sub_ = nh_.subscribe("/labjack/ain_msg", 100,LabjackMsgCallback );
 
   // Call the service get the calibrated currents
@@ -79,8 +86,21 @@ TemperatureMeasure::TemperatureMeasure(void):loop_rate_(100)
   if (!labjack_current_client.call(cal_currents))
     ROS_ERROR("Failed to call labjack calibrated current service");
   //double temp_res = labjack_temperature_.response.temp_res;
-  cal_200uA_ = cal_currents.response.cal_current_10uA;
-  cal_10uA_= cal_currents.response.cal_current_200uA;
+
+  cal_10uA_ = cal_currents.response.cal_current_10uA;
+  cal_200uA_= cal_currents.response.cal_current_200uA;
+  //ROS_INFO("200 uA is: %lf", cal_200uA_);
+
+ // Call the service get the calibrated currents
+  ros::ServiceClient labjack_publishing_client = nh_.serviceClient<labjack::StartPublishing>("/labjack/publishing_service");
+  labjack::StartPublishing start_labjack;
+  start_labjack.request.start = true;
+  if (!labjack_publishing_client.call(start_labjack))
+    ROS_ERROR("Failed to call labjack publishing service");
+
+  publishing_ = true;
+
+  data_pub_ =  nh_.advertise<vanDuinen::temp>("/temperature", 10);
 
   // set path for data storage
   //std::string full_topic = prefix_ + "/path_to_spcu";
@@ -100,27 +120,34 @@ TemperatureMeasure::TemperatureMeasure(void):loop_rate_(100)
 }
 
 
-
 TemperatureMeasure::~TemperatureMeasure(void)
 {
-  
-  // Close loggfile
+  // Close log file
   data_file_.close();
 }
 
 void TemperatureMeasure::publish()
 {
 
-  int num_temp = 1;
   int i;
-
-   // Put the values into a message
+  bool c200uA;
+  double du;
+  if( current_channel_ == 0)
+    c200uA = false;
+  else
+    c200uA = true;
+  // Put the values into a message
   temp_msg_.header.stamp = ros::Time::now();
 
   g_labjack_mutex.lock();
-  for( i=0; i < num_temp; i++)
+  for( i=starting_channel_; i < (number_of_channels_+starting_channel_); i++)
     {
-      temp_msg_.temperature[i] = g_ain_data[i];
+      // Convert voltage to resistance
+      if( i == (number_of_channels_+starting_channel_ -1) )
+	du = g_ain_data[i];
+      else
+	du = g_ain_data[i]-g_ain_data[i+1];      
+      temp_msg_.temperature[i] = volt2temperature(du,c200uA);
     }
   g_labjack_mutex.unlock();
 
@@ -129,6 +156,24 @@ void TemperatureMeasure::publish()
 
 }
 
+void TemperatureMeasure::spin()
+{
+  while (nh_.ok())
+    {
+      if (publishing_) //If publishing, publish 
+	{
+	  publish();
+	} 
+      time_ = ros::Time::now() - start_time_;
+      data_file_ << time_.toSec() << "\t" << volt2temperature(g_ain_data[3],true) << std::endl;
+      
+      //ROS_INFO("Time %f temp %lf",time_.toSec(),lintemp);
+      ros::spinOnce(); //Needed for callbacks
+      loop_rate_.sleep(); //
+     
+    }
+  
+}
 
 bool TemperatureMeasure::init_loggfile(char* path)
 {
@@ -146,10 +191,65 @@ bool TemperatureMeasure::init_loggfile(char* path)
   return true;
 }
 
+double TemperatureMeasure::volt2temperature(double u, bool cur_200ua)
+{
+
+
+  //  double t;
+  // Resistance voltage conversion table from 
+  // http://www.advindsys.com/ApNotes/YSI400SeriesProbesRvsT.htm
+
+  double resistance[35] = {4273, 4074, 3886, 3708, 3539, 3378, 3226, 
+			   3081, 2944, 2814, 2690, 2572, 2460, 2354, 
+			   2252, 2156, 2064, 1977, 1894, 1815, 1739,
+			   1667, 1599, 1533, 1471, 1412, 1355, 1301,
+			   1249, 1200, 1152, 1107, 1064, 1023, 983.8 };
+  double temp[35] = {11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,
+		     28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45};
+  double lintemp=-300;
+  int i=0;
+
+  // Call the service get data 
+
+  //labjack_temperature_.request.ain_number = ain_ch;     // Temperature sensor is on channel AIN3
+  //labjack_temperature_.request.current_number = curr_n; // Temperature sensor supplied with 200 uA
+
+  //if (!labjack_temperature_client_.call(labjack_temperature_))
+  //    ROS_ERROR("Failed to call labjack temperature service");
+  //double temp_res = labjack_temperature_.response.temp_res;
+  //time_ = labjack_temperature_.response.header.stamp - start_time_;
+  
+  double temp_res;
+  if (cur_200ua == true)
+    temp_res = u / cal_200uA_ ;
+  else
+    temp_res = u / cal_10uA_;      
+  
+  if( temp_res > 42733 )
+    {
+      ROS_WARN("Temp too low! Below 11 deg");
+      return -300;
+    }
+  if( temp_res < 1023 )
+    {
+      ROS_WARN("Temp too high! Above 45 deg");
+      return -300;
+    }
+
+  while(temp_res < resistance[i])
+    i++;
+ 
+  // Picse wise linear approximation:
+
+  lintemp =((temp_res-resistance[i])*(temp[i+1]-temp[i])/(resistance[i+1]-resistance[i]))+temp[i];
+
+  return lintemp;
+
+}
 
 double TemperatureMeasure::get_temperature(int ain_ch, int curr_n)
 {
-  double t;
+  //double t;
   // Resistance voltage conversion table from 
   // http://www.advindsys.com/ApNotes/YSI400SeriesProbesRvsT.htm
 

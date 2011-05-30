@@ -53,6 +53,8 @@
 
 #include <labjack/GetTemperature.h>
 #include <labjack/GetCurrents.h>
+#include <labjack/StartPublishing.h>
+
 
 class TemperatureMeasure 
 {
@@ -66,7 +68,7 @@ private:
   //double temp_;
 
   ros::Rate loop_rate_;
-
+  //  ros::Rate publish_rate_;
 
   ros::Duration time_;
   ros::Time start_time_; 
@@ -79,16 +81,22 @@ private:
   
   vanDuinen::temp temp_msg_;
   double temp_[14];
+  bool publishing_;
+  int current_channel_;
+  int starting_channel_;
+  int number_of_channels_;
 
 public:
   
   ros::NodeHandle nh_;
 
-  TemperatureMeasure(void);
+  TemperatureMeasure(int cur_n, int ch_start, int ch_num);
   ~TemperatureMeasure(void);
   void publish();
+  void spin();
   bool init_loggfile(char *path);
-  double get_temperature(int ain_ch, int curr_n); // Returns the temperature read from a resistance probe connected to labjack
+  double get_temperature(int ain_ch, int curr_n); // Returns the temperature read from a resistance probe connected to labjack  
+  double volt2temperature(double u, bool c200ua);
 
 };
 
