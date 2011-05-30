@@ -68,19 +68,7 @@ int main(int argc, char **argv)
       LJ_temp.init_loggfile("../data");
       ROS_INFO("relative path is ../data");
     }
-  int ain_channel = 3;
-  int curr_number = 1;
-
+  
   LJ_temp.spin();
-  /*
-  ros::Rate loop_rate(1);
 
-    while(ros::ok())
-    {
-      loop_rate.sleep();
-      ros::spinOnce();
-      temp = LJ_temp.get_temperature( ain_channel, curr_number);
-      
-    }
-  */
 }

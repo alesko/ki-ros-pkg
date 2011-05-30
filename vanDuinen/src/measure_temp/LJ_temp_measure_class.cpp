@@ -46,14 +46,16 @@
 
 boost::mutex g_labjack_mutex ; //GCLOBAL
 double g_ain_data[14];
+ros::Time g_time;
 
 // Callback function, not part of class!
 void LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg)
 {
   int i;
-  ros::Time t = msg->header.stamp;
-  
+  //  ros::Time 
+
   g_labjack_mutex.lock();
+  g_time = msg->header.stamp;  
   for(i=0; i < 14;i++)
     {
       g_ain_data[i] = msg->ain[i];  
@@ -137,7 +139,7 @@ void TemperatureMeasure::publish()
   else
     c200uA = true;
   // Put the values into a message
-  temp_msg_.header.stamp = ros::Time::now();
+  temp_msg_.header.stamp = g_time;//ros::Time::now();
 
   g_labjack_mutex.lock();
   for( i=starting_channel_; i < (number_of_channels_+starting_channel_); i++)
