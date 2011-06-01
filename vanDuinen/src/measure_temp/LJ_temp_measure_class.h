@@ -86,10 +86,15 @@ private:
   int starting_channel_;
   int number_of_channels_;
 
-public:
-  
   ros::NodeHandle nh_;
 
+public:
+  
+  
+
+  void LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg);
+
+  bool init(void);
   TemperatureMeasure(int cur_n, int ch_start, int ch_num);
   ~TemperatureMeasure(void);
   void publish();

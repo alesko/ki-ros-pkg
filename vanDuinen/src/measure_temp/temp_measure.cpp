@@ -54,8 +54,9 @@ int main(int argc, char **argv)
   ros::Time::init();
 
   // Current channel 0= 10uA, 1 200 uA, 
-  // AIN 3 and "range"
-  TemperatureMeasure LJ_temp(1,3,1); 
+  // AIN 0 and "range" 2, ie AIN0-AIN1
+  TemperatureMeasure LJ_temp(1,0,2);
+  LJ_temp.init();
   double temp;
   if(argc > 1)
     {      

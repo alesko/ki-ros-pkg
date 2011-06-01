@@ -44,21 +44,23 @@
  
 #include "LJ_temp_measure_class.h"
 
+// Gobal variables
+// 
 boost::mutex g_labjack_mutex ; //GCLOBAL
 double g_ain_data[14];
 ros::Time g_time;
 
 // Callback function, not part of class!
-void LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg)
+void TemperatureMeasure::LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg)
 {
   int i;
-  //  ros::Time 
 
   g_labjack_mutex.lock();
   g_time = msg->header.stamp;  
   for(i=0; i < 14;i++)
     {
-      g_ain_data[i] = msg->ain[i];  
+      g_ain_data[i] = msg->ain[i];
+      //g_data_file << g_time - time_.toSec() << "\t" << volt2temperature(g_ain_data[3],true) << std::endl;
     }
   g_labjack_mutex.unlock();
   //ROS_INFO("%lf",g_ain_data[3]);
@@ -70,17 +72,23 @@ void LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg)
 TemperatureMeasure::TemperatureMeasure(int cur_n, int ch_start, int ch_num):loop_rate_(5)
 //TemperatureMeasure::TemperatureMeasure():loop_rate_(5)
 {
-  std::string the_path;
+ 
   current_channel_ = cur_n;
   starting_channel_ = ch_start;
   number_of_channels_ = ch_num;
-  
+
+}
+
+bool TemperatureMeasure::init(void)
+{
+  std::string the_path;
+
   ROS_INFO("Creating a temperature node");
 
+  TemperatureMeasure object_copy(current_channel_,starting_channel_,number_of_channels_);
+  labjack_ain_sub_ = nh_.subscribe("/labjack/ain_msg", 100 , &TemperatureMeasure::LabjackMsgCallback, &object_copy );
+
   start_time_ = ros::Time::now();
-  //labjack_temperature_client_ = nh_.serviceClient<labjack::GetTemperature>("/labjack/temperature");
-  
-  labjack_ain_sub_ = nh_.subscribe("/labjack/ain_msg", 100,LabjackMsgCallback );
 
   // Call the service get the calibrated currents
   ros::ServiceClient labjack_current_client = nh_.serviceClient<labjack::GetCurrents>("/labjack/cal_currents");
@@ -104,20 +112,7 @@ TemperatureMeasure::TemperatureMeasure(int cur_n, int ch_start, int ch_num):loop
 
   data_pub_ =  nh_.advertise<vanDuinen::temp>("/temperature", 10);
 
-  // set path for data storage
-  //std::string full_topic = prefix_ + "/path_to_spcu";
-  /*std::string topic = "/temperature/path_to_data";
-  if (nh_.getParam(topic, the_path))
-    {
-      ROS_INFO("Path to for data logging is: %s", the_path.c_str());
-      strcpy( path_, the_path.c_str() );
-    }
-  else
-    {
-      ROS_ERROR("Unable to determine path for data logging, full_topic=%s", topic.c_str());
-      return;
-    }
-  */
+  return true;
 
 }
 
@@ -148,7 +143,8 @@ void TemperatureMeasure::publish()
       if( i == (number_of_channels_+starting_channel_ -1) )
 	du = g_ain_data[i];
       else
-	du = g_ain_data[i]-g_ain_data[i+1];      
+	du = g_ain_data[i]-g_ain_data[i+1];
+      ROS_INFO("On channel %d delta voltage is %lf, voltage is %lf",i,du, g_ain_data[i]);
       temp_msg_.temperature[i] = volt2temperature(du,c200uA);
     }
   g_labjack_mutex.unlock();
@@ -158,6 +154,13 @@ void TemperatureMeasure::publish()
 
 }
 
+/*
+void TemperatureMeasure::logg()
+{
+  time_ = g_time - start_time_t; //ros::Time::now() - start_time_;
+  data_file_ << time_.toSec() << "\t" << volt2temperature(g_ain_data[3],true) << std::endl;
+}*/
+
 void TemperatureMeasure::spin()
 {
   while (nh_.ok())
@@ -166,8 +169,7 @@ void TemperatureMeasure::spin()
 	{
 	  publish();
 	} 
-      time_ = g_time - start_time_t; //ros::Time::now() - start_time_;
-      data_file_ << time_.toSec() << "\t" << volt2temperature(g_ain_data[3],true) << std::endl;
+
       
       //ROS_INFO("Time %f temp %lf",time_.toSec(),lintemp);
       ros::spinOnce(); //Needed for callbacks
@@ -249,6 +251,7 @@ double TemperatureMeasure::volt2temperature(double u, bool cur_200ua)
 
 }
 
+/*
 double TemperatureMeasure::get_temperature(int ain_ch, int curr_n)
 {
   //double t;
@@ -297,7 +300,7 @@ double TemperatureMeasure::get_temperature(int ain_ch, int curr_n)
 
   return temp_[0];
   
-}
+}*/
 
 /*double TemperatureMeasure::get_resistance(int ain_ch, int curr_n)
 {
