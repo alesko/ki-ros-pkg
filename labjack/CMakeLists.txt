@@ -41,9 +41,11 @@ rosbuild_add_library(labjack src/liblabjack/u6.c include/labjackusb.h)
 #rosbuild_add_executable(shadow_node_main src/shadow_node/shadow_node_main.cpp src/shadow_node/shadow_node.cpp)
 #target_link_libraries(shadow_node_main shadow)
 rosbuild_add_executable(labjack_node_main src/labjack_node/labjack_node_main.cpp src/labjack_node/labjack_node.cpp)
+rosbuild_add_executable(lj_temp_main src/lj_temp/lj_temp_main.cpp src/lj_temp/lj_temp.cpp)
 
 # Use both the local file and the file installed on the system
 target_link_libraries(labjack_node_main labjack labjackusb) 
+target_link_libraries(lj_temp_main labjack labjackusb) 
 
 #rosbuild_add_executable(glove_finger src/shadow_node/glove_finger.cpp src/shadow_node/shadow_node.cpp src/shadow_node/shadow_PID.cpp)
 #target_link_libraries(glove_finger shadow)

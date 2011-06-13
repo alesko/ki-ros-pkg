@@ -51,7 +51,7 @@ double g_ain_data[14];
 ros::Time g_time;
 
 // Callback function, not part of class!
-void TemperatureMeasure::LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg)
+void LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg)
 {
   int i;
 
@@ -67,9 +67,25 @@ void TemperatureMeasure::LabjackMsgCallback(const boost::shared_ptr<const labjac
   //ain_msg_.header.stamp = ros::Time::now();
 
 }
+/*void TemperatureMeasure::LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg)
+{
+  int i;
+
+  g_labjack_mutex.lock();
+  g_time = msg->header.stamp;  
+  for(i=0; i < 14;i++)
+    {
+      g_ain_data[i] = msg->ain[i];
+      //g_data_file << g_time - time_.toSec() << "\t" << volt2temperature(g_ain_data[3],true) << std::endl;
+    }
+  g_labjack_mutex.unlock();
+  //ROS_INFO("%lf",g_ain_data[3]);
+  //ain_msg_.header.stamp = ros::Time::now();
+
+  }*/
 
 // Current channel is set to one or 2
-TemperatureMeasure::TemperatureMeasure(int cur_n, int ch_start, int ch_num):loop_rate_(5)
+TemperatureMeasure::TemperatureMeasure(int cur_n, int ch_start, int ch_num):loop_rate_(1)
 //TemperatureMeasure::TemperatureMeasure():loop_rate_(5)
 {
  
@@ -85,9 +101,11 @@ bool TemperatureMeasure::init(void)
 
   ROS_INFO("Creating a temperature node");
 
-  TemperatureMeasure object_copy(current_channel_,starting_channel_,number_of_channels_);
-  labjack_ain_sub_ = nh_.subscribe("/labjack/ain_msg", 100 , &TemperatureMeasure::LabjackMsgCallback, &object_copy );
-
+  // TODO: make callback part of class
+  //TemperatureMeasure object_copy(current_channel_,starting_channel_,number_of_channels_);
+  //labjack_ain_sub_ = nh_.subscribe("/labjack/ain_msg", 100 , &TemperatureMeasure::LabjackMsgCallback, &object_copy );
+  labjack_ain_sub_ = nh_.subscribe("/labjack/ain_msg", 100 , LabjackMsgCallback );
+  
   start_time_ = ros::Time::now();
 
   // Call the service get the calibrated currents
