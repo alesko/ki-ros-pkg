@@ -40,9 +40,10 @@
 #include <u6.h>
 
 //#include <labjackusb.h>
+#include <vector>
+//using namespace std;
 
 /*
-//#include <vector>
 #include <sstream>
 #include <iostream>
 #include <cstdio>
@@ -163,7 +164,10 @@ class LabjackTemp
   //labjack::Sensors ain_msg_;
   double ain_[14];
   double temp_[2];
+  //vector<double> temp_vec_;
+  std::vector<double> temp1_vec_,temp2_vec_;
   labjack::temperatures temp_msg_;
+  int buffersize_ ;
   
   //double target_values_[NUM_VALVES];
   //bool getSensorReading(void);

@@ -39,6 +39,8 @@
 #include <iostream>
 #include <cstdio>
 #include <string>
+#include <algorithm>
+#include <numeric>
 
 #include <ros/ros.h>
 #include <std_msgs/String.h>
@@ -188,6 +190,8 @@ LabjackTemp::~LabjackTemp(void)  //Destructor destorys object, ~ needed
 
 void LabjackTemp::init()
 {
+
+  buffersize_ = 50;
   
   ROS_INFO("Initializing Labjack");
 
@@ -669,11 +673,21 @@ int LabjackTemp::StreamData()
 	ain_[k] = voltages[scanNumber - 1][k];
 	ain_[k+1] = voltages[scanNumber - 1][k+1];
 	temp_[k/2] =  volts2temperature(voltages[scanNumber - 1][k]- voltages[scanNumber - 1][k+1]);
+	
 	//data_file_ << "\t" << voltages[scanNumber - 1][k]; //volts2temperature(voltages[scanNumber - 1][k] ); //volt2temperature(g_ain_data[3],true)
 	data_file_ << "\t" << volts2temperature(voltages[scanNumber - 1][k]- voltages[scanNumber - 1][k+1]);
       }
     //labjack_mutex_.unlock(); 
     data_file_ << std::endl;
+    // Add avlues to vector
+    temp1_vec_.push_back(temp_[0]);
+    temp2_vec_.push_back(temp_[1]);
+    if( temp1_vec_.size() > buffersize_ )
+      {
+	// Remove values if vector is too long
+	temp1_vec_.erase(temp1_vec_.begin());//	temp1_vec_.pop_front();
+	temp2_vec_.erase(temp2_vec_.begin());//temp2_vec_.pop_front();
+      }
     //  ROS_INFO("  AI%d: %.4f V", k, voltages[scanNumber - 1][k]);
     //}
     
@@ -814,19 +828,27 @@ void LabjackTemp::publish()
 
   StreamData();
   int i;
+  double sum;
 
   temp_msg_.header.stamp = ros::Time::now();    
    // Put the values into a message
   //labjack_mutex_.lock();
-  for( i=0; i < 2; i++)
+  /*for( i=0; i < 2; i++)
     //for( i=0; i < 1; i++)
     {
       //labjack_mutex_.lock();
       temp_msg_.temp[i] = temp_[i];
       //labjack_mutex_.unlock();
-    }
+    }*/
+  sum = accumulate(temp1_vec_.begin(), temp1_vec_.end(),0.0);
+  temp_[0] = sum / (double)temp1_vec_.size();
+  sum = accumulate(temp2_vec_.begin(), temp2_vec_.end(),0.0);
+  temp_[1] = sum / (double)temp2_vec_.size();
+  temp_msg_.temp[0] = temp_[0];
+  temp_msg_.temp[1] = temp_[1];
   //labjack_mutex_.unlock();
   ain_reading_pub_.publish(temp_msg_);
+  ROS_INFO("temp: %lf\t%lf",temp_[0],temp_[1]);
   //ain_reading_pub_.publush();
 }
     
