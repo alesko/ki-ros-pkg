@@ -47,7 +47,7 @@
 #include <shadow/StartPublishing.h>
 #include <shadow/SetValves.h>
 #include <shadow/ShadowSensors.h>
-#include <shadow/LJGetTemperature.h>
+//#include <shadow/LJGetTemperature.h>
 
 class FingerPushing
 {
@@ -60,7 +60,7 @@ private:
   shadow::SetController spcu_controller_values_;
   shadow::DisableController spcu_controller_disable_;
   
-  shadow::LJGetTemperature labjack_temperature_;
+  //shadow::LJGetTemperature labjack_temperature_;
 
   // Services for sending commands to the SPCU
   ros::ServiceClient spcu_client_pulse_valves_;
@@ -70,7 +70,7 @@ private:
   ros::ServiceClient spcu_client_controller_;
   ros::ServiceClient spcu_disable_controller_;
 
-  ros::ServiceClient labjack_temperature_client_;
+  //ros::ServiceClient labjack_temperature_client_;
   
   // Subscriber to subscribe to sensordata
   ros::Subscriber spcu_shadow_sensor_sub_;
@@ -81,7 +81,7 @@ public:
   
   ros::NodeHandle nh_;
 
-  FingerPushing();
+  FingerPushing(void);
   ~FingerPushing(void);
   bool init();
   bool fill_pam();

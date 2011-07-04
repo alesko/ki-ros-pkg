@@ -68,8 +68,9 @@ void ShadowSensorMsgCallback(const boost::shared_ptr<const shadow::ShadowSensors
 
 FingerPushing::FingerPushing():loop_rate_(100)
 {
+  //ros::init(argc, argv, "hiske_finger_push");
   // Just for testing
-  labjack_temperature_client_ = nh_.serviceClient<shadow::LJGetTemperature>("/labjack/temperature");
+  //labjack_temperature_client_ = nh_.serviceClient<shadow::LJGetTemperature>("/labjack/temperature");
 }
 
 FingerPushing::~FingerPushing()
@@ -387,6 +388,7 @@ void FingerPushing::interprete_case(unsigned int test_case, int& type, double& s
     } 
 }
 
+/*
 double FingerPushing::get_temperature(int ain_ch, int curr_n)
 {
   double t;
@@ -430,3 +432,4 @@ double FingerPushing::get_temperature(int ain_ch, int curr_n)
   return t;
   
 }
+*/

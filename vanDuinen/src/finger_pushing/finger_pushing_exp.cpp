@@ -58,6 +58,10 @@
 
 int main(int argc, char **argv)
 {
+  // Init ROS
+  ros::init(argc, argv, "hiske_finger_push");
+  ros::start();
+
   int i,j;
   double baseline_force=0;
   double force_max = 0;
@@ -74,8 +78,6 @@ int main(int argc, char **argv)
   double baseline_tolerance;
   //double baseline_tolerance;
 
-  // Init ROS
-  ros::init(argc, argv, "hiske_finger_push");
 
   // Create the object
   FingerPushing finger_pushing;
