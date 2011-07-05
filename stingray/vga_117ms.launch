@@ -1,0 +1,23 @@
+<launch>
+  <!-- first camera and associated image pipeline -->
+  <group ns="left" >
+    <node pkg="camera1394" type="camera1394_node" name="camera1394_node" >
+      <rosparam file="camera/left_camera_30fps_640x480.yaml" />
+    </node>
+    <include file="/camera/image_pipeline.launch" />    
+  </group>
+
+  <!-- second camera and associated image pipeline -->
+  <group ns="right" >
+    <node pkg="camera1394" type="camera1394_node" name="camera1394_node" >
+      <rosparam file="camera/right_camera_30fps_640x480.yaml" />
+    </node>
+    <include file="/camera/image_pipeline.launch" />   
+  </group>
+
+  <!-- monitoring and configuration tools 
+  <node pkg="rxtools" type="rxconsole" name="rxconsole" />
+  <node pkg="dynamic_reconfigure" type="reconfigure_gui"
+        name="reconfigure_gui" /> -->
+
+</launch>
