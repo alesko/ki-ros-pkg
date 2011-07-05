@@ -33,74 +33,39 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *********************************************************************/
+#include "lj_temp.h"
 
-#ifndef TEMPERATURE_MEASURE_CLASS_H_
-#define TEMPERATURE_MEASURE_CLASS_H_
-
-#include <iostream>
-#include <string>
-#include <time.h>
-#include <stdio.h>
-#include <fstream>
-#include <iomanip>
-
-// Messages
-
-#include <labjack/Sensors.h>
-#include <vanDuinen/temp.h>
-
-// services
-
-#include <labjack/GetTemperature.h>
-#include <labjack/GetCurrents.h>
-#include <labjack/StartPublishing.h>
+//#include "control_class.h"
+//#include "shadow_PID.h"
+#include <ros/ros.h>
 
 
-class TemperatureMeasure 
+int main(int argc, char **argv)
 {
-private:
-  // This will change soon
-  labjack::GetTemperature labjack_temperature_;
 
-  ros::ServiceClient labjack_temperature_client_;
-  ros::Subscriber labjack_ain_sub_;
-  ros::Publisher data_pub_;
-  //double temp_;
-
-  ros::Rate loop_rate_;
-  //  ros::Rate publish_rate_;
-
-  ros::Duration time_;
-  ros::Time start_time_; 
-
-  std::ofstream data_file_; // Data storange
-  char* path_;
-
-  double cal_200uA_;
-  double cal_10uA_;
+  ros::init(argc, argv, "labjack");
+  //ros::Rate sleep_rate;
+  /*if (argc == 2)
+    {
+      std::string labjack_dev = argv[1];  //Port id string
+      LabjackTemp lj(labjack_dev);
+      ROS_INFO("Labjack node created");
+      lj.init();
+      //lj.spin(); //Maybe uncomment
+      
+    }
+  else
+  {*/
+      LabjackTemp lj; //Get port id from ROS parameter server
+      ROS_INFO("Labjack node created");
+      lj.init();
+      lj.init_loggfile("../data");
+      lj.spin(); //Loop
+      
+      //  }
   
-  vanDuinen::temp temp_msg_;
-  double temp_[14];
-  bool publishing_;
-  int current_channel_;
-  int starting_channel_;
-  int number_of_channels_;
+  return 0;
 
-  ros::NodeHandle nh_;
+}
 
-public:
 
-  //void LabjackMsgCallback(const boost::shared_ptr<const labjack::Sensors> &msg);
-
-  bool init(void);
-  TemperatureMeasure(int cur_n, int ch_start, int ch_num);
-  ~TemperatureMeasure(void);
-  void publish();
-  void spin();
-  bool init_loggfile(char *path);
-  double get_temperature(int ain_ch, int curr_n); // Returns the temperature read from a resistance probe connected to labjack  
-  double volt2temperature(double u, bool c200ua);
-
-};
-
-#endif

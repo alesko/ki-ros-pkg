@@ -56,7 +56,9 @@ int main(int argc, char **argv)
   int force_push_max = 0;
   int max_force;
 
+  
   ros::init(argc, argv, "hiske_finger_push");
+  ros::start();
 
   FingerPushing finger_pushing;
 
