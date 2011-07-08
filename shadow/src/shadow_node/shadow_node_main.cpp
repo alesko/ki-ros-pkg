@@ -49,7 +49,7 @@ int main(int argc, char **argv)
       ShadowNode s(shadow_dev);
       ROS_INFO("ShadowNode created");
       s.ShadowInit();
-      //s.spin(); 
+      s.spin(); 
       
     }
   else

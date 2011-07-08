@@ -52,6 +52,7 @@
 int main(int argc, char **argv)
 {
   int baseline_force;
+  int rest_pos;
   int force_pull_max = 0;
   int force_push_max = 0;
   int max_force;
@@ -65,17 +66,29 @@ int main(int argc, char **argv)
   finger_pushing.init();
   finger_pushing.empty_pam();
 
+  // Record baseline
   ROS_INFO("Baseline force will now be measured. Loosen screws, relax and push the button to start");
   finger_pushing.wait_button_push(PUSH_BUTTON, 0.0);
 
-  // Record baseline
   baseline_force = (int) finger_pushing.record_sensor_data( FLEXIFORCE_AIRMUSCLE, 100);
   ROS_INFO("Baseline force %d",baseline_force);
   const int bf=baseline_force;
   finger_pushing.nh_.setParam("/shadow/baseline_force", bf);  
   ros::spinOnce();
 
-  // Get valuse from parameter server
+
+  // Record relax position
+  ROS_INFO("Resting position will now be measured. Loosen screws, relax and push the button to start");
+  finger_pushing.wait_button_push(PUSH_BUTTON, 0.0);
+
+  rest_pos = (int) finger_pushing.record_sensor_data( RIGHT_FINGER_ANGLE, 100);
+  ROS_INFO("Resting position %d",rest_pos);
+  const int rp=rest_pos;
+  finger_pushing.nh_.setParam("/shadow/resting_position", rp);  
+  ros::spinOnce();
+
+
+  // Get values from parameter server
   if (finger_pushing.nh_.hasParam("/shadow/max_pull_force"))
     finger_pushing.nh_.getParam("/shadow/max_pull_force", force_pull_max); 
   else
@@ -86,7 +99,7 @@ int main(int argc, char **argv)
   else
     force_push_max=0;
 
-  // Record max push force 
+  // Record max force 
   ROS_INFO("Max force will now be measured");
   ROS_INFO("Loosen screws and KEEP rubber bands, then push the button to start");
   finger_pushing.wait_button_push(PUSH_BUTTON, 0.0);

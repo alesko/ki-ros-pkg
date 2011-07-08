@@ -169,16 +169,19 @@ void shadowDeviceSetParams(shadow_spcu_device_p dev)
   // no XON/XOFF software flow control  
   //ctio.c_iflag &= ~(IGNBRK | BRKINT | ICRNL |		      
   //		      INLCR | PARMRK | INPCK | ISTRIP | IXON);
-  ctio.c_iflag = 0;
+  
 
+  ctio.c_cflag = B19200;      // 19200 baud
   ctio.c_cflag |= CS8;      // 8 bit
   ctio.c_cflag |= CREAD;    // 
+  ctio.c_iflag = 0;
 
   ctio.c_cflag |= CLOCAL;   //
   ctio.c_cflag |= CRTSCTS;  //
 
   ctio.c_oflag = 0;
   ctio.c_lflag = 0;
+
   ctio.c_cc[VTIME] = 1; // Time out after 0.1 s
   ctio.c_cc[VMIN] = 0;  // blocking read until 0 chars received 
   
