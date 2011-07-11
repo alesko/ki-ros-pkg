@@ -76,10 +76,21 @@ int main(int argc, char **argv)
   finger_pushing.nh_.setParam("/shadow/baseline_force", bf);  
   ros::spinOnce();
 
+  // Record baseline
+  ROS_INFO("Force variance will now be measured to calibrate PAM, DON'T TOUCH ANYTHING!");
+  finger_pushing.wait_button_push(PUSH_BUTTON, 0.0);
+  int max_n, min_n;
+  finger_pushing.record_maxmin_sensor_data_time(FLEXIFORCE_AIRMUSCLE, 5.0,  min_n, max_n);
+  
+  ROS_INFO("Min force %d, max force %d, diff %d ",min_n, max_n, max_n-min_n );
+  const int var= max_n-min_n;
+  finger_pushing.nh_.setParam("/shadow/force_variance", var);  
+  ros::spinOnce();
+
 
   // Record relax position
   ROS_INFO("Resting position will now be measured. Loosen screws, relax and push the button to start");
-  finger_pushing.wait_button_push(PUSH_BUTTON, 0.0);
+  //finger_pushing.wait_button_push(PUSH_BUTTON, 0.0);
 
   rest_pos = (int) finger_pushing.record_sensor_data( RIGHT_FINGER_ANGLE, 100);
   ROS_INFO("Resting position %d",rest_pos);

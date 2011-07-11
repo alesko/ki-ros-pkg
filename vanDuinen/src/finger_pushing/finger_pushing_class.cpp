@@ -192,6 +192,36 @@ int FingerPushing::record_max_sensor_data_time(int sensor,float duration)
   
 }
 
+bool FingerPushing::record_maxmin_sensor_data_time(int sensor,float duration, int& min, int& max)
+{
+
+  double start_time = ros::Time::now().toSec();
+  bool run = true;
+  int l_max = 0;
+  int l_min = 100000;
+  int sensor_val;
+  double running_time; 
+  
+  while( run )
+    {
+      loop_rate_.sleep();
+      ros::spinOnce();
+      sensor_val = g_sensordata[sensor];
+      if ( l_max < sensor_val )
+	l_max = sensor_val;
+      if ( l_min > sensor_val )
+	l_min = sensor_val;
+      running_time = ros::Time::now().toSec() - start_time;
+      if( running_time > duration )
+	run = false;
+    }
+  min = l_min;
+  max = l_max;
+
+  return true;
+  
+}
+
 
 //bool measure_baseline(int sensor, int current_baseline)
 bool FingerPushing::measure_baseline(int sensor, int current_baseline, double tol)

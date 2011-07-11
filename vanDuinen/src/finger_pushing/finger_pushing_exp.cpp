@@ -72,7 +72,8 @@ int main(int argc, char **argv)
   double scale;
   unsigned int len ;
   double exp_duration=0.1;
-  int tol = 125;
+  int tol = 75;
+  int var;
   
   int playback_force;
   bool adaptive_baseline;
@@ -106,7 +107,7 @@ int main(int argc, char **argv)
     {
       finger_pushing.nh_.getParam("/shadow/max_pull_force", force_max); 
       ROS_INFO("/shadow/max_pull_force is %f", force_max );
-      data_file << "/shadow/max_pull_force is " << force_max << std::endl;
+      data_file << "/shadow/max_pull_force: " << force_max << std::endl;
     }
   else
     {
@@ -116,11 +117,26 @@ int main(int argc, char **argv)
     }
 
   // Check for parameters on parameter server
+  if (finger_pushing.nh_.hasParam("/shadow/force_variance"))
+    {
+      finger_pushing.nh_.getParam("/shadow/force_variance", var); 
+      tol = var/2; 
+      ROS_INFO("/shadow/force_variance %d", var );
+      ROS_INFO("tol %d", tol );
+      data_file << "/shadow/force_variance: " << tol << std::endl;
+    }
+  else
+    {
+      ROS_WARN("/shadow/force_variance does not exits!");
+      ROS_INFO("Using default tolerance: %d", tol);
+    }
+
+  // Check for parameters on parameter server
   if (finger_pushing.nh_.hasParam("/shadow/resting_position"))
     {
       finger_pushing.nh_.getParam("/shadow/resting_position", resting_position); 
       ROS_INFO("/shadow/resting_position %d", resting_position );
-      data_file << "/shadow/resting_position " << resting_position << std::endl;
+      data_file << "/shadow/resting_position: " << resting_position << std::endl;
     }
   else
     {
@@ -303,7 +319,8 @@ int main(int argc, char **argv)
 	  // Start the PID controllers on SPCU
 	  finger_pushing.set_controller(AIRMUSCLE_FILL_VALVE, FLEXIFORCE_AIRMUSCLE, 4, 2, 0);
 	  finger_pushing.set_controller(AIRMUSCLE_EMPTY_VALVE, FLEXIFORCE_AIRMUSCLE, -4, -2, 0);
-	  finger_pushing.set_target(AIRMUSCLE_FILL_VALVE, playback_force, (int) (tol* (1.0+scale) ) );
+	  //finger_pushing.set_target(AIRMUSCLE_FILL_VALVE, playback_force, (int) (tol* (1.0+scale) ) );
+	  finger_pushing.set_target(AIRMUSCLE_FILL_VALVE, playback_force, (int)tol);
 
 	  ROS_INFO("Push the button to stop");
 	  finger_pushing.wait_button_push(PUSH_BUTTON, 2.0);
@@ -312,6 +329,7 @@ int main(int argc, char **argv)
 	  ROS_INFO("Dectivating PAM...");
 	  finger_pushing.disable_controller(AIRMUSCLE_FILL_VALVE);
 	  finger_pushing.disable_controller(AIRMUSCLE_EMPTY_VALVE);
+	  finger_pushing.set_target(AIRMUSCLE_FILL_VALVE, 0, 0);   // Remove target
 	  finger_pushing.empty_pam();
 	  ROS_INFO("Done!\n");
 	  break;

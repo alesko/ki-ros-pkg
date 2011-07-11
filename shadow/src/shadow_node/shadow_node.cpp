@@ -158,6 +158,12 @@ void ShadowNode::ShadowInit()
      
   //sensor_reading_pub_ = private_nh_.advertise<shadow::Sensors>("sensors_pub", 100);
 
+
+ // Init target values
+  int i =0;
+  for(i=0; i < NUM_VALVES; i++)
+    set_target_[i] = 0;
+
   ROS_INFO("Starting services!");
   system_status_srv_ = private_nh_.advertiseService("get_status", &ShadowNode::getStatus,this);
   set_valves_srv_ = private_nh_.advertiseService("set_valves", &ShadowNode::setValves,this);
