@@ -317,8 +317,10 @@ int main(int argc, char **argv)
 	  ROS_INFO("Activation of PAM!");
 	  
 	  // Start the PID controllers on SPCU
-	  finger_pushing.set_controller(AIRMUSCLE_FILL_VALVE, FLEXIFORCE_AIRMUSCLE, 4, 2, 0);
-	  finger_pushing.set_controller(AIRMUSCLE_EMPTY_VALVE, FLEXIFORCE_AIRMUSCLE, -4, -2, 0);
+	  //finger_pushing.set_controller(AIRMUSCLE_FILL_VALVE, FLEXIFORCE_AIRMUSCLE, 4, 2, 0);
+	  //finger_pushing.set_controller(AIRMUSCLE_EMPTY_VALVE, FLEXIFORCE_AIRMUSCLE, -4, -2, 0);
+	  finger_pushing.set_controller(AIRMUSCLE_FILL_VALVE, FLEXIFORCE_AIRMUSCLE, 2, 1, 0);
+	  finger_pushing.set_controller(AIRMUSCLE_EMPTY_VALVE, FLEXIFORCE_AIRMUSCLE, -2, -1, 0);
 	  //finger_pushing.set_target(AIRMUSCLE_FILL_VALVE, playback_force, (int) (tol* (1.0+scale) ) );
 	  finger_pushing.set_target(AIRMUSCLE_FILL_VALVE, playback_force, (int)tol);
 
