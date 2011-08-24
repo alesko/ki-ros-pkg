@@ -58,6 +58,18 @@ int servoSetBaudrate(servo_device_p dev)
   return 1;
 }
 
+int servoReset(servo_device_p dev)
+{
+  unsigned char cmd[MAX_NUM_CHAR];
+  unsigned char answer[MAX_NUM_CHAR];
+
+  sprintf(cmd,"!SCSBR%c%c",0x00,0xD);
+  servoSendReceiveCommand(dev->fd, cmd,strlen(cmd), &answer,0 );
+  servoDeviceSetBaudrate(dev, 2400);
+
+  return 1;
+}
+
 int servoFirmwareVersion(servo_device_p dev)
 {
   unsigned char cmd[MAX_NUM_CHAR];
@@ -99,19 +111,14 @@ int servoReportPosition(servo_device_p dev, unsigned char ch, int *pos)
 int servoSetPosition(servo_device_p dev, unsigned char ch, unsigned char ra,
 		     int pos)
 {
-  //printf("servoSetPosition\n");
 
   unsigned char cmd[MAX_NUM_CHAR];
-  //int i,j,k;
   unsigned char answer[MAX_NUM_CHAR];
   
   unsigned char pwlow,pwhigh;
   pwlow  = (unsigned char) pos;
   pwhigh = (unsigned char) (pos>>8);
-  //printf("%.2x %.2x\n",pwlow,pwhigh);
 
-  //pwlow  = 0x00;
-  //pwhigh = 0x03;
   sprintf(cmd, "%c%c%c%c%c%c%c%c",0x21,0x53,0x43,ch,ra,pwlow,pwhigh,0xd);
     
   //printf("len %d\n ",strlen(cmd));
@@ -119,7 +126,7 @@ int servoSetPosition(servo_device_p dev, unsigned char ch, unsigned char ra,
     printf("%.2x ",cmd[k]);
     }*/
   servoSendReceiveCommand(dev->fd, cmd,8, &answer,0 );
-  //printf("%s\n",answer);
+
   
   return 1;
 }

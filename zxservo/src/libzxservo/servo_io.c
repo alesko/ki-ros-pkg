@@ -189,7 +189,7 @@ void servoDeviceSetParams(servo_device_p dev)
   //options.c_oflag &= ~OPOST;
   
   options.c_lflag = 0;
-  options.c_cc[VTIME] = 10; // Time out after 0.1 s
+  options.c_cc[VTIME] = 1; // Time out after 0.1 s
   options.c_cc[VMIN] = 5;  // blocking read until 0 chars received 
 
   /*
@@ -344,7 +344,7 @@ int servoSendReceiveCommand(int fd, unsigned char *cmd, int len, unsigned char *
     nChars = nChars - written;
     if (written < len){
       i = i + written;
-      usleep(1000);
+      usleep(100);
     }
   }
 
@@ -362,7 +362,7 @@ int servoSendReceiveCommand(int fd, unsigned char *cmd, int len, unsigned char *
     }
     if( pos == (len+ans) )  // Are we done reading ?
       done = 1;
-    usleep(500);
+    usleep(100);
     loop++;
     //printf("l %d ",loop);
     if( loop > MAX_NUM_LOOPS )
