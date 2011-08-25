@@ -46,29 +46,10 @@
 #include <std_msgs/String.h>
 #include <boost/thread/mutex.hpp>
 
-//#include <tf/transform_broadcaster.h>
-//#include <shadow_base.h>
-//#include <shadow_commands.h>
-//#include <shadow_io.h>
 
-//#include "shadow_node.h"
 #include "lj_temp.h"
 
-/*
-// messages
-#include <shadow/Sensors.h>
-#include <shadow/Valves.h>
 
-// services
-#include <shadow/GetStatus.h>
-#include <shadow/GetSensors.h>
-#include <shadow/SetTargets.h>
-#include <shadow/SetValves.h>
-#include <shadow/PulseValves.h>
-
-#include <shadow/SetTargets.h>
-#include <shadow/StartPublishing.h>
-*/
 using namespace ros;
 
 //const uint8 NumChannels = 5;        //For this example to work proper, SamplesPerPacket needs
@@ -184,6 +165,8 @@ LabjackTemp::~LabjackTemp(void)  //Destructor destorys object, ~ needed
   ROS_INFO("Closing LabJack device.");
   closeUSBConnection(h_device_);
   ROS_INFO("LabJack device closed.");
+  data_file_.close();
+  temp_file_.close();
 
 }
 
@@ -688,6 +671,8 @@ int LabjackTemp::StreamData()
 	temp1_vec_.erase(temp1_vec_.begin());//	temp1_vec_.pop_front();
 	temp2_vec_.erase(temp2_vec_.begin());//temp2_vec_.pop_front();
       }
+
+
     //  ROS_INFO("  AI%d: %.4f V", k, voltages[scanNumber - 1][k]);
     //}
     
@@ -771,12 +756,20 @@ bool LabjackTemp::init_loggfile(char* path)
   // Open data file for printing
   time_t t = time(0);
   struct tm* lt = localtime(&t);
-  char time_str[256];
-  sprintf(time_str, "%s/templog_%04d%02d%02d_%02d%02d%02d.log",path,
+  char time_str1[256];
+  sprintf(time_str1, "%s/datalog_%04d%02d%02d_%02d%02d%02d.log",path,
           lt->tm_year + 1900, lt->tm_mon + 1, lt->tm_mday,
           lt->tm_hour, lt->tm_min, lt->tm_sec);
  
-  data_file_.open(time_str);
+  data_file_.open(time_str1);
+
+  char time_str2[256];
+  sprintf(time_str2, "%s/templog_%04d%02d%02d_%02d%02d%02d.log",path,
+          lt->tm_year + 1900, lt->tm_mon + 1, lt->tm_mday,
+          lt->tm_hour, lt->tm_min, lt->tm_sec);
+ 
+  temp_file_.open(time_str2);
+
 
   return true;
 }
@@ -846,6 +839,12 @@ void LabjackTemp::publish()
   temp_[1] = sum / (double)temp2_vec_.size();
   temp_msg_.temp[0] = temp_[0];
   temp_msg_.temp[1] = temp_[1];
+
+  // Store in file
+  temp_file_ << time_.toSec();
+  temp_file_ << "\t" << temp_[0] << "\t" << temp_[1] << std::endl;
+
+
   //labjack_mutex_.unlock();
   ain_reading_pub_.publish(temp_msg_);
   ROS_INFO("temp: %lf\t%lf",temp_[0],temp_[1]);

@@ -41,23 +41,6 @@
 
 //#include <labjackusb.h>
 #include <vector>
-//using namespace std;
-
-/*
-#include <sstream>
-#include <iostream>
-#include <cstdio>
-#include <string>
-
-#include <ros/ros.h>
-
-//#include <tf/transform_broadcaster.h>
-
-#include <shadow_base.h>
-#include <shadow_commands.h>
-#include <shadow_io.h>
-*/
-//#include <shadow_base.h>
 
 #include <std_msgs/String.h>
 #include <ros/ros.h>
@@ -66,26 +49,7 @@
 
 // messages
 #include <labjack/temperatures.h>
-/*#include <shadow/Valves.h>
-#include <shadow/ShadowTargets.h>
 
-// services
-#include <shadow/SetController.h>
-#include <shadow/SetControllerwTarget.h>
-#include <shadow/GetStatus.h>
-#include <shadow/GetSensors.h>
-
-#include <shadow/DisableController.h>
-
-#include <shadow/SetValves.h>  */
-/*#include <labjack/PulseValves.h>
-#include <labjack/SetTargets.h>
-#include <labjack/GetTemperature.h>
-#include <labjack/GetCurrents.h>
-#include <labjack/StartPublishing.h> //StartPublishing is a service, .h is generated
-#include <labjack/GetAIN.h>
-*/
-//#define NUM_VALVES 10
 
 class LabjackTemp
 {
@@ -105,7 +69,8 @@ class LabjackTemp
   ros::Rate publish_rate_;
   int rate_;
 
-  std::ofstream data_file_; // Data storange
+  std::ofstream data_file_; // Data storange, all data
+  std::ofstream temp_file_; // Mean temp, low freq storange
   char* path_;
 
   ros::Duration time_;
