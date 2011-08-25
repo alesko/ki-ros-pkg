@@ -59,7 +59,7 @@ using namespace ros;
                                     //1-25 for 1 StreamData response per packet.
 boost::mutex g_labjack_mutex;
 
-LabjackTemp::LabjackTemp(): private_nh_("~"), publish_rate_(5), publish_duration_(0.200)  //init variabels 
+LabjackTemp::LabjackTemp(): private_nh_("~"), publish_rate_(1), publish_duration_(0.200)  //init variabels 
 {
    // 5 Hz
   resolutionIndex_ = 1;
@@ -174,7 +174,7 @@ LabjackTemp::~LabjackTemp(void)  //Destructor destorys object, ~ needed
 void LabjackTemp::init()
 {
 
-  buffersize_ = 50;
+  buffersize_ = 200;
   
   ROS_INFO("Initializing Labjack");
 
