@@ -1,0 +1,21 @@
+<package>
+  <description brief="avtstingray">
+
+     avtstingray
+
+  </description>
+  <author>Alexander Skoglund</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/avtstingray</url>
+  <depend package="sensor_msgs"/>
+  <depend package="cv_bridge"/>
+  <depend package="sensor_msgs"/>
+  <depend package="roscpp"/>
+  <depend package="std_msgs"/>
+  <depend package="image_transport"/>
+  <export> <cpp lflags="-lGL -lglut" /> </export>
+
+</package>
+
+
