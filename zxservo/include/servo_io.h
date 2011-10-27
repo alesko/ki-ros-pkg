@@ -2,7 +2,7 @@
  *
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2011, Alexander Skoglund, Karolinska Institute
+ *  Copyright (c) 2011, Alexander Skoglund, KI
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -15,7 +15,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of the Karolinska Institute nor the names of its
+ *   * Neither the name of the Robert Bosch nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -33,36 +33,32 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *********************************************************************/
-#include "shadow_node.h"
-//#include "shadow_PID.h"
-#include <ros/ros.h>
 
+#ifndef SERVO_IO_H
+#define SERVO_IO_H
 
-int main(int argc, char **argv)
-{
+#include "servo_base.h"
 
-  ros::init(argc, argv, "shadow");
-  //ros::Rate sleep_rate;
-  if (argc == 2)
-    {
-      std::string shadow_dev = argv[1];  
-      ShadowNode s(shadow_dev);
-      ROS_INFO("ShadowNode created");
-      s.ShadowInit();
-      s.spin(); 
-      
-    }
-  else
-    {
-      ShadowNode s;
-      ROS_INFO("ShadowNode created");
-      s.ShadowInit();
-      s.spin(); 
-      
-    }
-  
-  return 0;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+  void servoDeviceSetParams(servo_device_p dev);
+  void servoDeviceSetBaudrate(servo_device_p dev, int brate);
+  int  servoDeviceConnectPort(servo_device_p dev);
+  void servoDeviceClosePort(servo_device_p dev);
+  //int  servoSendCommandEcho(int fd, unsigned char *cmd, int len);
+  //int  servoSendCommand(int fd, unsigned char *cmd, int len);
+  //int  servoGetAnswer(int fd, unsigned char *buf,int len, int cs_flag);
+
+  int  servoSendReceiveCommand(int fd, unsigned char *cmd, int len, unsigned char *echo, int ans);
+ 
+  //  int shadowGetAnswer(shadow_spcu_device_p dev, unsigned char *cmd,unsigned char *buf );
+  //int amtecSendCommand(amtec_powercube_device_p dev, int id, unsigned char *cmd, int len);
+  //int amtecGetAnswer(amtec_powercube_device_p dev, unsigned char *cmd, int *len);
+
+#ifdef __cplusplus
 }
+#endif
 
-
+#endif

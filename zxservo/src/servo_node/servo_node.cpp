@@ -2,7 +2,7 @@
  *
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2010, Alexander Skoglund, Karolinska Institute
+ *  Copyright (c) 2011, Alexander Skoglund, Karolinska Institute
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -47,12 +47,13 @@
 
 
 
-#include <shadow_base.h>
-#include <shadow_commands.h>
-#include <shadow_io.h>
+#include <servo_base.h>
+#include <servo_commands.h>
+#include <servo_io.h>
 
-#include "shadow_node.h"
+#include "servo_node.h"
 
+/*
 // messages
 //#include <shadow/Sensors.h>
 #include <shadow/Valves.h>
@@ -64,75 +65,85 @@
 #include <shadow/SetValves.h>
 #include <shadow/PulseValves.h>
 #include <shadow/StartPublishing.h>
-
+*/
 using namespace ros;
 
-ShadowNode::ShadowNode() : private_nh_("~"), publish_rate_(60)
+ServoClass::ServoClass(): node_("~"), publish_rate_(50)
 {
   std::string dev;
   std::string searched_param;
   double publish_freq;
 
-  ROS_INFO("Creating a Shadow SPCU node");
+  ROS_INFO("Creating a Servo node");
     
-  shadow_ = shadowInitialize();
-
-  // Find the Shadow prefix
-  private_nh_.searchParam("shadow_prefix", searched_param);
-  private_nh_.param(searched_param, prefix_, std::string());
+  servo_ = servoInitialize();
+  
+  // Find the servo prefix
+  node_.searchParam("servo_prefix", searched_param);
+  node_.param(searched_param, prefix_, std::string());
 
   // set path to SPCU
-  std::string full_topic = prefix_ + "/path_to_spcu";
-  if (private_nh_.getParam(full_topic, dev))
+  std::string full_topic = prefix_ + "/path_to_servo";
+  if (node_.getParam(full_topic, dev))
     {
-      ROS_INFO("Path to SPCU is: %s", dev.c_str());
+      ROS_INFO("Path to servo is: %s", dev.c_str());
     }
   else
     {
-      ROS_ERROR("Unable to determine path to SPCU, full_topic=%s", full_topic.c_str());
+      ROS_ERROR("Unable to determine path to servo, full_topic=%s", full_topic.c_str());
       return;
     }
 
-  strcpy(shadow_->dev.ttyport, dev.c_str());
+  strcpy(servo_->dev.ttyport, dev.c_str());
 
   //private_nh_.searchParam("/spcu_publish_frequency", searched_param);
   //private_nh_.param(searched_param, prefix_, std::string());
 
 
   // set publish frequency from parameter server
-  full_topic = prefix_ + "/spcu_publish_frequency";    
+  full_topic = prefix_ + "/servo_publish_frequency";    
 
-  if (private_nh_.getParam(full_topic, publish_freq))
+  if (node_.getParam(full_topic, publish_freq))
     {      
       ROS_INFO("Frequency from %s is %f", full_topic.c_str(), publish_freq);
       publish_rate_ = Rate(publish_freq);      
     }
   
-  ROS_INFO("Shadow SPCU node is created");
+  
+  ROS_INFO("Servo node is created");
 
 }
 
+ServoClass::~ServoClass()
+{
+  ROS_INFO("Closing servo" );
+  servoReset(&servo_->dev);
+  servoDeviceClosePort(&servo_->dev);
+  ROS_INFO("Servo closed, goodbye" );
+
+}
+/*
 ShadowNode::ShadowNode(std::string dev) : private_nh_("~"), publish_rate_(60)//publish_rate_(60)
 {
 
-  
-    
   shadow_ = shadowInitialize();
-
   strcpy(shadow_->dev.ttyport, dev.c_str());
-    
  
 }
-
-void ShadowNode::ShadowInit()
+*/
+ 
+void ServoClass::ServoInit()
 {
-  ROS_INFO("Initializing Shadow SPCU");
+  ROS_INFO("Initializing Servo");
   int msg_que_len = 5;    
 
-  if (shadowDeviceConnectPort(&shadow_->dev) < 0) 
+  //servoDeviceSetParams(&servo_->dev);
+
+  
+  if (servoDeviceConnectPort(&servo_->dev) < 0) 
     {
-      ROS_FATAL("Unable to connect shadow at %s\n", shadow_->dev.ttyport);
-      private_nh_.shutdown();
+      ROS_FATAL("Unable to connect shadow at %s\n", servo_->dev.ttyport);
+      node_.shutdown();
       return;   
     }
   else
@@ -143,26 +154,21 @@ void ShadowNode::ShadowInit()
       //std::string searched_param;
       //private_nh_.searchParam("shadow_prefix", searched_param);
       //private_nh_.param(searched_param, prefix_, std::string());
-      std::string full_topic = prefix_ + "/sensor_msg";
+      std::string full_topic = prefix_ + "/positions";
       ROS_INFO("Starting publisher!");
-      shadow_pub_ = private_nh_.advertise<shadow::ShadowSensors>(full_topic,msg_que_len );
-      full_topic = prefix_ + "/target_msg";
-      target_pub_ = private_nh_.advertise<shadow::ShadowTargets>(full_topic,msg_que_len );
+      position_pub_ = node_.advertise<zxservo::positions>(full_topic,msg_que_len );
+      //shadow_pub_ = private_nh_.advertise<shadow::ShadowSensors>(full_topic,msg_que_len );
+      //full_topic = prefix_ + "/target_msg";
+      //target_pub_ = private_nh_.advertise<shadow::ShadowTargets>(full_topic,msg_que_len );
     }
     
   // ***** Parameters *****
-
+  /*
   ROS_INFO("Retrieving module state");
   shadowHexStatus(shadow_);  
   shadowPrintParams(&shadow_->par);
      
   //sensor_reading_pub_ = private_nh_.advertise<shadow::Sensors>("sensors_pub", 100);
-
-
- // Init target values
-  int i =0;
-  for(i=0; i < NUM_VALVES; i++)
-    set_target_[i] = 0;
 
   ROS_INFO("Starting services!");
   system_status_srv_ = private_nh_.advertiseService("get_status", &ShadowNode::getStatus,this);
@@ -174,20 +180,44 @@ void ShadowNode::ShadowInit()
   contoller_target_srv_ = private_nh_.advertiseService("enable_controller_target", &ShadowNode::setControllerwTarget,this);
   disable_contoller_srv_ = private_nh_.advertiseService("disable_controller", &ShadowNode::disController,this);
   publishing_srv_ = private_nh_.advertiseService("publishing_service", &ShadowNode::setPublishing,this);
+*/
+  
+  servoSetBaudrate(&servo_->dev);
+  publishing_ = true; //false;
+  ROS_INFO("Servo is ready!");
+  /*int left=0;
 
-  publishing_ = false;
-  ROS_INFO("Shadow SPCU is ready!");
+  int pos0;
+  int pos2;
+
+  for(int i =0; i < 5; i++){   
+    if( left == 0)
+      {
+	servoSetPosition(&servo_->dev, 0x00, 0x00, 1200);
+	servoSetPosition(&servo_->dev, 0x02, 0x00, 300);
+	left = 1;
+      }
+    else
+      {
+	servoSetPosition(&servo_->dev, 0x00, 0x00, 300);
+	servoSetPosition(&servo_->dev, 0x02, 0x00, 1200);
+	left = 0;
+      }
+    usleep(10000);
+    servoReportPosition(&servo_->dev, 0x00, &pos0);
+    ROS_INFO("Posistion ch 0: %d",pos0 );
+    servoReportPosition(&servo_->dev, 0x02, &pos2);
+    ROS_INFO("Posistion ch 2: %d",pos2 );
+  }
+  servoSetPosition(&servo_->dev, 0x00, 0x00, 300);
+  servoSetPosition(&servo_->dev, 0x02, 0x00, 1200);
+  servoFirmwareVersion(&servo_->dev);
+  */
 
 }
 
-ShadowNode::~ShadowNode()
-{
-  ROS_INFO("Closing SPCU" );
-  shadowClear(shadow_);
-  ROS_INFO("SPCU closed, goodbye" );
 
-}
-
+/*
 bool ShadowNode::setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp)
 {   
   int set_valve[NUM_VALVES]={0,0,0,0,0,0,0,0};
@@ -205,7 +235,8 @@ bool ShadowNode::setValves(shadow::SetValves::Request& req, shadow::SetValves::R
   return true;
 
 }
-
+*/
+/*
 bool ShadowNode::pulseValves(shadow::PulseValves::Request& req, shadow::PulseValves::Response& resp)
 {   
   //  int i;
@@ -235,12 +266,13 @@ bool ShadowNode::getSensorReading(shadow::GetSensors::Request& req, shadow::GetS
    
   return true;
 }
-
+*/
+/*
 bool ShadowNode::setController(shadow::SetController::Request& req, shadow::SetController::Response& resp)
 {   
   
-  /*ROS_INFO("Got: v=%d, s=%d, P=%d, I=%d, D=%d",(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
-    (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);*/
+  //ROS_INFO("Got: v=%d, s=%d, P=%d, I=%d, D=%d",(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
+   // (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
   shadow_mutex_.lock();
   //shadowHexSetController(&shadow_->dev,(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
   //		 (char)-1, (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
@@ -255,12 +287,13 @@ bool ShadowNode::setController(shadow::SetController::Request& req, shadow::SetC
 
   return true;
 }
-
+*/
+/*
 bool ShadowNode::setControllerwTarget(shadow::SetControllerwTarget::Request& req, shadow::SetControllerwTarget::Response& resp)
 {   
   
-  /*ROS_INFO("Got: v=%d, s=%d, P=%d, I=%d, D=%d",(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
-    (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);*/
+//ROS_INFO("Got: v=%d, s=%d, P=%d, I=%d, D=%d",(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
+  //  (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
   shadow_mutex_.lock();
   //shadowHexSetController(&shadow_->dev,(unsigned short)req.Controller_valve , (unsigned short)req.Controller_sensor,
   //		 (char)-1, (char)req.Controller_P, (char)req.Controller_I, (char)req.Controller_D);
@@ -275,7 +308,8 @@ bool ShadowNode::setControllerwTarget(shadow::SetControllerwTarget::Request& req
 
   return true;
 }
-  
+*/
+/*
 bool ShadowNode::setTargets(shadow::SetTargets::Request& req, shadow::SetTargets::Response& resp)
 {
   // TODO: check why this function makes the hardware "hang"
@@ -298,7 +332,8 @@ bool ShadowNode::setTargets(shadow::SetTargets::Request& req, shadow::SetTargets
 
   return true;
 }
-
+*/
+/*
 bool ShadowNode::disController(shadow::DisableController::Request& req, shadow::DisableController::Response& resp)
 {   
  
@@ -310,7 +345,8 @@ bool ShadowNode::disController(shadow::DisableController::Request& req, shadow::
 
   return true;
 }
-
+*/
+/*
 bool ShadowNode::getStatus(shadow::GetStatus::Request& req, shadow::GetStatus::Response& resp)
 {
   int i;
@@ -346,8 +382,8 @@ bool ShadowNode::getStatus(shadow::GetStatus::Request& req, shadow::GetStatus::R
 
   return true;
 }
-
-
+*/
+/*
 bool ShadowNode::setPublishing(shadow::StartPublishing::Request& req, shadow::StartPublishing::Response& resp)
 {
   if(req.start)
@@ -368,7 +404,10 @@ bool ShadowNode::setPublishing(shadow::StartPublishing::Request& req, shadow::St
   return true;
 }
 
-bool  ShadowNode::isPublishing()
+*/
+
+
+bool  ServoClass::isPublishing()
 {
   if (publishing_)
     {
@@ -382,36 +421,46 @@ bool  ShadowNode::isPublishing()
     }
 }
 
-void ShadowNode::publish()
+
+
+void ServoClass::publish()
 {
  
   int i;
-  unsigned short  sensor_val[8];
-  shadow_mutex_.lock();
+  //unsigned short  sensor_val[8];
+  //shadow_mutex_.lock();
   // Read the sensor values
-  shadowHexReadSensors(&shadow_->dev,sensor_val);
-  shadow_mutex_.unlock();
-  sensor_msg_.header.stamp = ros::Time::now();    
-  target_msg_.header.stamp = ros::Time::now();    
+  //shadowHexReadSensors(&shadow_->dev,sensor_val);
+  //shadow_mutex_.unlock();
+  //sensor_msg_.header.stamp = ros::Time::now();    
+  //target_msg_.header.stamp = ros::Time::now();
+  positions_msg_.header.stamp = ros::Time::now();
+  int pos[NUM_CHANNELS];
+  for(i=0; i < NUM_CHANNELS; i++)
+    {
+      // Measure the time for this function!!!
+      servoReportPosition(&servo_->dev, 0x00, &pos[i]);
+      positions_msg_.pos[i] = 0; //pos[i];
+    }
   // Put the values into a message
-  for(i=0; i < NUM_VALVES; i++)
-    sensor_msg_.sensor[i] = sensor_val[i];
+  //for(i=0; i < NUM_VALVES; i++)
+  //  sensor_msg_.sensor[i] = sensor_val[i];
 
   // Put the values into a message
-  for(i=0; i < NUM_VALVES; i++)
-    target_msg_.target[i] = set_target_[i];
+  //for(i=0; i < NUM_VALVES; i++)
+  //  target_msg_.target[i] = set_target_[i];
 
    
   //publish the msgs
-  shadow_pub_.publish(sensor_msg_);
-  target_pub_.publish(target_msg_);
-
+  //shadow_pub_.publish(sensor_msg_);
+  //target_pub_.publish(target_msg_);
+  position_pub_.publish(positions_msg_);
 
 }
 
 
 
-bool ShadowNode::spin()
+bool ServoClass::spin()
 {
   //unsigned short  sensor_val[8];
   //ros::Rate r(10); // 10 ms or 100 Hz ??
@@ -420,14 +469,6 @@ bool ShadowNode::spin()
     {
       if (publishing_)
 	publish();
-      /*{
-	  publish();
-	}
-      else
-	{
-	  ros::spinOnce();
-	  //publish_rate_.sleep();
-	}*/
       ros::spinOnce();
       publish_rate_.sleep();
     }

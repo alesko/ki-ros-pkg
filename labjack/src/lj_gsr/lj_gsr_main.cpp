@@ -33,7 +33,9 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *********************************************************************/
-#include "shadow_node.h"
+#include "lj_temp.h"
+
+//#include "control_class.h"
 //#include "shadow_PID.h"
 #include <ros/ros.h>
 
@@ -41,25 +43,26 @@
 int main(int argc, char **argv)
 {
 
-  ros::init(argc, argv, "shadow");
+  ros::init(argc, argv, "labjack");
   //ros::Rate sleep_rate;
-  if (argc == 2)
+  /*if (argc == 2)
     {
-      std::string shadow_dev = argv[1];  
-      ShadowNode s(shadow_dev);
-      ROS_INFO("ShadowNode created");
-      s.ShadowInit();
-      s.spin(); 
+      std::string labjack_dev = argv[1];  //Port id string
+      LabjackTemp lj(labjack_dev);
+      ROS_INFO("Labjack node created");
+      lj.init();
+      //lj.spin(); //Maybe uncomment
       
     }
   else
-    {
-      ShadowNode s;
-      ROS_INFO("ShadowNode created");
-      s.ShadowInit();
-      s.spin(); 
+  {*/
+      LabjackTemp lj; //Get port id from ROS parameter server
+      ROS_INFO("Labjack node created");
+      lj.init();
+      lj.init_loggfile("../data");
+      lj.spin(); //Loop
       
-    }
+      //  }
   
   return 0;
 

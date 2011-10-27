@@ -89,6 +89,7 @@ public:
   bool wait_button_push(int number, double delay);
   double record_sensor_data(int sensor,int number_of_recordings);
   int record_max_sensor_data_time(int sensor,float duration);
+  bool record_maxmin_sensor_data_time(int sensor,float duration, int& min, int& max);
   bool set_controller(int controller, int sensor, int p, int i, int d);
   bool set_target(int controller, int target, int tol);
   bool disable_controller(int controller);

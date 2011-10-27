@@ -33,7 +33,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *********************************************************************/
-#include "shadow_node.h"
+#include "servo_node.h"
 //#include "shadow_PID.h"
 #include <ros/ros.h>
 
@@ -41,22 +41,27 @@
 int main(int argc, char **argv)
 {
 
-  ros::init(argc, argv, "shadow");
+  
+  ros::init(argc, argv, "servo");
+  ServoClass s;
+  s.ServoInit();
+  ROS_INFO("Servo node created");
   //ros::Rate sleep_rate;
   if (argc == 2)
     {
-      std::string shadow_dev = argv[1];  
+      /*std::string shadow_dev = argv[1];  
       ShadowNode s(shadow_dev);
       ROS_INFO("ShadowNode created");
       s.ShadowInit();
-      s.spin(); 
+      */
+      //s.spin(); 
       
     }
   else
     {
-      ShadowNode s;
-      ROS_INFO("ShadowNode created");
-      s.ShadowInit();
+      //ServoClass s;
+      //ROS_INFO("Servo node created");
+      //s.ServoInit();
       s.spin(); 
       
     }

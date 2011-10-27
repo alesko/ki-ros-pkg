@@ -2,7 +2,7 @@
  *
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2010, Alexander Skoglund, Karolinska Institute
+ *  Copyright (c) 2011, Alexander Skoglund, Karolinska Institute
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,8 @@
 #include <sys/time.h>
 #include <linux/serial.h>
 
-#include "shadow_base.h"
-#include "shadow_io.h"
+#include "servo_base.h"
+#include "servo_io.h"
 
 //#define IO_DEBUG
 
@@ -140,11 +140,69 @@ long bytesWaiting(int sd)
     return -1;
 }
 
-void shadowDeviceSetParams(shadow_spcu_device_p dev)
+void servoDeviceSetParams(servo_device_p dev)
 {
-  struct termios ctio;
+  struct termios options;
+
+  // set everything to 0
+  //bzero(&options, sizeof(options));
+
+  // again set everything to 0
+  tcgetattr(dev->fd, &options); /* Get the current port settings */
+  
+  bzero(&options, sizeof(options));
  
-  tcgetattr(dev->fd, &ctio); /* save current port settings */
+  options.c_cflag = B2400;
+
+  cfsetispeed(&options, B2400);
+  cfsetospeed(&options, B2400);
+  
+  /*
+   * Enable the receiver and set local mode...
+   */
+  
+  options.c_cflag |= (CLOCAL | CREAD | CS8);
+  
+ 
+  
+  //options.c_cflag &= ~CSIZE; /* Mask the character size bits */
+  //options.c_cflag |= CS8;    /* Select 8 data bits */
+  
+  //options.c_cflag &= ~PARENB;
+  //options.c_cflag &= ~CSTOPB;
+  //options.c_cflag &= ~CSIZE;
+  //options.c_cflag |= CS8;
+
+  //options.c_cflag &= ~CRTSCTS; //CNEW_RTSCTS; /* Disable hardware flow control */
+
+  // RAW data 
+  //options.c_lflag &= ~(ICANON | ECHO | ISIG);
+  //options.c_lflag &= ~(ECHO | ECHOE);
+
+  //options.c_iflag |= (INPCK | ISTRIP);
+  options.c_iflag = IGNPAR;
+
+  // No software flow control
+  //options.c_iflag &= ~(IXON | IXOFF | IXANY);
+
+  options.c_oflag = 0;
+  //options.c_oflag &= ~OPOST;
+  
+  options.c_lflag = 0;
+  options.c_cc[VTIME] = 1; // Time out after 0.1 s
+  options.c_cc[VMIN] = 5;  // blocking read until 0 chars received 
+
+  /*
+   * Set the new options for the port...
+   */
+  
+  tcflush(dev->fd, TCIFLUSH);
+  tcsetattr(dev->fd, TCSAFLUSH, &options);
+  tcsetattr(dev->fd, TCSANOW, &options);
+
+  //struct termios ctio;
+ 
+  //tcgetattr(dev->fd, &ctio); /* save current port settings */
   /*
   ctio.c_iflag = iSoftControl(dev->swf) | iParity(dev->parity);
   ctio.c_oflag = 0;
@@ -160,7 +218,7 @@ void shadowDeviceSetParams(shadow_spcu_device_p dev)
   cfsetospeed(&ctio, (speed_t) cBaudrate(dev->baud));
   */
 
-  //  ctio.c_cflag = B19200; //cBaudrate(brate);
+  //ctio.c_cflag = cBaudrate(2400);
 
   // Input flags - Turn off input processing
   // convert break to null byte, no CR to NL translation,
@@ -169,29 +227,28 @@ void shadowDeviceSetParams(shadow_spcu_device_p dev)
   // no XON/XOFF software flow control  
   //ctio.c_iflag &= ~(IGNBRK | BRKINT | ICRNL |		      
   //		      INLCR | PARMRK | INPCK | ISTRIP | IXON);
+  //ctio.c_iflag = 0;
+
+  //ctio.c_cflag |= CS8;      // 8 bit
+  //ctio.c_cflag |= CREAD;    // 
+
+  //ctio.c_cflag |= CLOCAL;   //
+  //ctio.c_cflag |= CRTSCTS;  //
+
+  //ctio.c_oflag = 0;
+  //ctio.c_lflag = 0;
+  //ctio.c_cc[VTIME] = 1; // Time out after 0.1 s
+  //ctio.c_cc[VMIN] = 1;  // blocking read until 0 chars received 
   
 
-  ctio.c_cflag = B19200;      // 19200 baud
-  ctio.c_cflag |= CS8;      // 8 bit
-  ctio.c_cflag |= CREAD;    // 
-  ctio.c_iflag = 0;
+  //tcflush(dev->fd, TCIFLUSH);
+  //tcsetattr(dev->fd, TCSANOW, &ctio);
 
-  ctio.c_cflag |= CLOCAL;   //
-  ctio.c_cflag |= CRTSCTS;  //
 
-  ctio.c_oflag = 0;
-  ctio.c_lflag = 0;
-
-  ctio.c_cc[VTIME] = 1; // Time out after 0.1 s
-  ctio.c_cc[VMIN] = 0;  // blocking read until 0 chars received 
-  
-
-  tcflush(dev->fd, TCIFLUSH);
-  tcsetattr(dev->fd, TCSANOW, &ctio);
-  printf("Successfully executed shadowDeviceSetParams\n");
+  printf("Successfully executed servoDeviceSetParams\n");
 }
 
-void shadowDeviceSetBaudrate(shadow_spcu_device_p dev, int brate)
+void servoDeviceSetBaudrate(servo_device_p dev, int brate)
 {
   struct termios ctio;
 
@@ -204,7 +261,7 @@ void shadowDeviceSetBaudrate(shadow_spcu_device_p dev, int brate)
   tcsetattr(dev->fd, TCSANOW, &ctio);
 }
 
-int shadowDeviceConnectPort(shadow_spcu_device_p dev)
+int servoDeviceConnectPort(servo_device_p dev)
 {
   fprintf(stderr, "\nset device:\n");
   fprintf(stderr, "   port           = %s\n", dev->ttyport);
@@ -215,7 +272,7 @@ int shadowDeviceConnectPort(shadow_spcu_device_p dev)
 					  fprintf(stderr, "   hardwareflow   = %d\n", dev->hwf);*/
   //if ((dev->fd = open((dev->ttyport), (O_RDWR | O_NOCTTY), 0)) < 0)
   //  return (-1);
-  dev->fd  = open((dev->ttyport), (O_RDWR | O_NOCTTY) );
+  dev->fd  = open((dev->ttyport), (O_RDWR | O_NOCTTY ) );
   if ( dev->fd < 0 )
     {
       printf("Error when open %s\n", dev->ttyport);
@@ -223,11 +280,11 @@ int shadowDeviceConnectPort(shadow_spcu_device_p dev)
     }
   else
    printf("Successfully opened %s\n", dev->ttyport); //return (-1)  
-   shadowDeviceSetParams(dev);
+   servoDeviceSetParams(dev);
    return (dev->fd);
 }
 
-void shadowDeviceClosePort(shadow_spcu_device_p dev)
+void servoDeviceClosePort(servo_device_p dev)
 {
 
   /*if (!is_comport_open()){
@@ -254,205 +311,95 @@ void shadowDeviceClosePort(shadow_spcu_device_p dev)
   dev->fd = -1;
 }
 
-int shadowSendCommandEchoAscii(int fd, unsigned char *cmd, int len)
+int servoSendReceiveCommand(int fd, unsigned char *cmd, int len, unsigned char *echo, int ans)
 {
   int written = 0;
   int nChars = len;
   int nRead;
-  int i;
-  unsigned char echo[1];
-
-  // DEBUGGING
-  //printf("In shadowSendCommand\n");
-  //printf("send fd%d\n ", fd);
-  //for(i=0;i< len;i++)
-  //  printf("%d ",cmd[i]);
-  //printf("\n ");
-  //*******************
-
-  
-  /*i=0;
-  while (nChars > 0 ) {
-    written = write(fd, &(cmd[i]),len);
-    nChars = nChars - written;
-    if (written < len){
-      i = i + written;
-      usleep(1000);
-    }
-    }*/
-
-  i=0;
-  while (nChars > 0 ) {
-    //written = write(fd, &(cmd[i]),len);
-    // Write one char
-    written = write(fd, &(cmd[i]),1);
-    nChars = nChars - written;
-    if (written < len){
-      i = i + written;
-      //usleep(1000);
-      // Wait for the echo
-      nRead = read(fd, &echo[0], 1);
-      printf("echo %.2x\n ", echo[0]);
-    }
-  }
-  // Wait for the LF + OK
-  for(i=0;i<3;i++){
-    nRead = read(fd, &echo[0], 1);
-    printf("cs %.2x\n ", echo[0]);
-  }
-  return 1;
-}
-
-int shadowSendCommandEcho(int fd, unsigned char *cmd, int len)
-{
-  int written = 0;
-  int nChars = len;
-  int nRead;
-  int i;
-  unsigned char echo[1];
-
-  // DEBUGGING
-  //printf("In shadowSendCommand\n");
-  //printf("send fd%d\n ", fd);
-  //for(i=0;i< len;i++)
-  //  printf("%d ",cmd[i]);
-  //printf("\n ");
-  //*******************
-
-  
-  /*i=0;
-  while (nChars > 0 ) {
-    written = write(fd, &(cmd[i]),len);
-    nChars = nChars - written;
-    if (written < len){
-      i = i + written;
-      usleep(1000);
-    }
-    }*/
-
-  i=0;
-  while (nChars > 0 ) {
-    //written = write(fd, &(cmd[i]),len);
-    // Write one char
-    written = write(fd, &(cmd[i]),1);
-    nChars = nChars - written;
-    if (written < len){
-      i = i + written;
-      //usleep(1000);
-      // Wait for the echo
-      nRead = read(fd, &echo[0], 1);
-      printf("echo %.2x\n ", echo[0]);
-    }
-  }
-  // Wait for the checksum
-  nRead = read(fd, &echo[0], 1);
-  printf("cs %.2x\n ", echo[0]);
-  return 1;
-}
-
-int shadowSendCommand(int fd, unsigned char *cmd, int len)
-{
-  int written = 0;
-  int nChars = len;
-  int nRead;
-  int i;
-  unsigned char echo[1];
-
-  // DEBUGGING
-  //printf("In shadowSendCommand\n");
-  //printf("send fd%d\n ", fd);
-  //for(i=0;i< len;i++)
-  //  printf("%d ",cmd[i]);
-  //printf("\n ");
-  //*******************
-
-  
-  /*i=0;
-  while (nChars > 0 ) {
-    written = write(fd, &(cmd[i]),len);
-    nChars = nChars - written;
-    if (written < len){
-      i = i + written;
-      usleep(1000);
-    }
-    }*/
-
-  i=0;
-  while (nChars > 0 ) {
-    //written = write(fd, &(cmd[i]),len);
-    // Write one char
-    written = write(fd, &(cmd[i]),1);
-    nChars = nChars - written;
-    if (written < len){
-      i = i + written;
-      usleep(1000);
-    }
-    /*else
-    {
-      // Wait for the echo
-      nRead = read(fd, &echo[0], 1);
-      printf("echo %x\n ", echo[0]);
-      }*/
-  }
-  // Wait for the checksum
-  //nRead = read(fd, &echo[0], 1);
-  //printf("cs %x\n ", echo[0]);
-  return 1;
-}
-
-
-
-int shadowGetAnswer(int fd, unsigned char* buf, int len, int cs_flag) //, unsigned char *cmd)
-{
+  int i,j;
+  unsigned char lecho[20];
   int loop=0;
-  int i, nread;
   int w = 1;
   int pos;
-  //unsigned char lbuf[MAX_NUM_CHAR];
-  unsigned char checksum=0;
+  //int ans = 3;
+  int done = 0;
+  int ok;
+
+  for(i=0;i< 20;i++)
+    echo[i] =0;
+
   
+  // DEBUGGING
+  printf("\nIn servoSendCommandEchoAscii\n");
+  //printf("send fd%d\n ", fd);
+  for(i=0;i< len;i++)
+    printf("%.2x ",cmd[i]);
+  printf("\n ");
+  //*******************
+
   
-  //printf("In shadowGetAnswer \n");
-  nread=0;
+  i=0;
+  while (nChars > 0 ) {
+    written = write(fd, &(cmd[i]),len);
+    nChars = nChars - written;
+    if (written < len){
+      i = i + written;
+      usleep(100);
+    }
+  }
+
+  usleep(1500);
+
+  nRead=0;
   pos = 0;
-  while (loop < MAX_NUM_LOOPS) {
+  while (done == 0 ) {
     w = bytesWaiting(fd);
-    //printf("len  %d\n ",len);
-    if (len > 0) {
-      nread = read(fd, &(buf[pos]), len);
-      pos = pos + nread;
-      // j = nread;
-      //printf("nread  %d:  ",nread);      
-      if( pos == len )  // Are we done reading ?
+    if (w > 0) {
+      printf("w:  %d:  ",w);      
+      nRead = read(fd, &(lecho[pos]), len);
+      pos = pos + nRead;
+      printf("nRead: %d pos: %d\n",nRead,pos);  
+    }
+    if( pos == (len+ans) )  // Are we done reading ?
+      done = 1;
+    usleep(100);
+    loop++;
+    //printf("l %d ",loop);
+    if( loop > MAX_NUM_LOOPS )
+      break;
+  }
+  ok = 1;
+  if( done == 1)
+    {
+      printf("Done ");
+      for(i=0;i<len;i++){ 
+	if( lecho[i] != cmd[i])
+	  ok= 0;
+      }
+      if( ok == 1)
 	{
-	  if( cs_flag ){ 
-	    for(i=1;i < len-1;i++){ // Compute checksum
-	      //printf("%.2x ",buf[i]);
-	      checksum = checksum + buf[i]; //    checksum = (checksum && 0x0f)+ inbuf[i];
-	      //printf("\t ch %.4x\n ", checksum);
-	    }
-	    //checksum = checksum && 0xff;
-	    //printf("\t ch %.2x\n ", checksum);
-	    //printf("buf[%d] ch %x\n ",len-1, buf[len-1]);
-	    if( buf[len-1] == checksum)
-	      return len;
-	    else
-	      return -1;
+	  j = 0;
+	  for( ;i<len+ans;i++){
+	    echo[i-len]=lecho[i];
+	    printf("%.2x",echo[i-len]);
 	  }
-	  return len;
+	  printf("\n");
 	}
       else
 	{
-	  usleep(100);
-	  loop++;
+	  return 0;
 	}
       
-    } 
-    else {
-      usleep(100);
-      loop++;
     }
+
+
+  for(i=len;i<len+ans;i++){  
+    printf("%.2x ", echo[i]);
   }
-  return 0;
+  printf("\n");
+ 
+  return 1;
 }
+
+
 

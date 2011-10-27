@@ -72,12 +72,17 @@ int main(int argc, char **argv)
   double scale;
   unsigned int len ;
   double exp_duration=0.1;
-  int tol = 50;
+  int tol = 75;
+  int var;
+  
   int playback_force;
   bool adaptive_baseline;
   double baseline_tolerance;
   //double baseline_tolerance;
 
+  int resting_position;
+  double resting_position_f;
+  int tol_rp = 20;
 
   // Create the object
   FingerPushing finger_pushing;
@@ -102,7 +107,7 @@ int main(int argc, char **argv)
     {
       finger_pushing.nh_.getParam("/shadow/max_pull_force", force_max); 
       ROS_INFO("/shadow/max_pull_force is %f", force_max );
-      data_file << "/shadow/max_pull_force is " << force_max << std::endl;
+      data_file << "/shadow/max_pull_force: " << force_max << std::endl;
     }
   else
     {
@@ -110,6 +115,37 @@ int main(int argc, char **argv)
       ROS_ERROR("Run the finger_pushing_ini program!");
       exit(0);
     }
+
+  // Check for parameters on parameter server
+  if (finger_pushing.nh_.hasParam("/shadow/force_variance"))
+    {
+      finger_pushing.nh_.getParam("/shadow/force_variance", var); 
+      tol = var/2; 
+      ROS_INFO("/shadow/force_variance %d", var );
+      ROS_INFO("tol %d", tol );
+      data_file << "/shadow/force_variance: " << tol << std::endl;
+    }
+  else
+    {
+      ROS_WARN("/shadow/force_variance does not exits!");
+      ROS_INFO("Using default tolerance: %d", tol);
+    }
+
+  // Check for parameters on parameter server
+  if (finger_pushing.nh_.hasParam("/shadow/resting_position"))
+    {
+      finger_pushing.nh_.getParam("/shadow/resting_position", resting_position); 
+      ROS_INFO("/shadow/resting_position %d", resting_position );
+      data_file << "/shadow/resting_position: " << resting_position << std::endl;
+    }
+  else
+    {
+      ROS_ERROR("/shadow/resting_position does not exits!");
+      ROS_ERROR("Run the finger_pushing_ini program!");
+      exit(0);
+    }
+
+
   if (finger_pushing.nh_.hasParam("/shadow/adaptive_baseline"))
     {
       finger_pushing.nh_.getParam("/shadow/adaptive_baseline", adaptive_baseline);
@@ -131,6 +167,36 @@ int main(int argc, char **argv)
 	{
 	  ROS_INFO("/shadow/adaptive_baseline will NOT be used");
 	  data_file << "/shadow/adaptive_baseline false" << std::endl;
+
+	  if (finger_pushing.nh_.hasParam("/shadow/baseline_force"))
+	    {
+	      finger_pushing.nh_.getParam("/shadow/baseline_force", baseline_force); 
+	      ROS_INFO("/shadow/baseline_force %f", baseline_force );
+	      data_file << "/shadow/baseline_force " << baseline_force << std::endl;
+	      
+	      if (finger_pushing.nh_.hasParam("/shadow/baseline_tolerance"))
+		{
+		  finger_pushing.nh_.getParam("/shadow/baseline_tolerance", baseline_tolerance);
+		  if( (baseline_tolerance > 1.0)||(baseline_tolerance < 0.0) )
+		    {
+		      ROS_ERROR("/shadow/baseline_tolerance is out of bound");
+		    }
+		  ROS_INFO("/shadow/baseline_tolerance %f", baseline_tolerance );
+		  data_file << "/shadow/baseline_tolerance " << baseline_tolerance << std::endl;
+		  
+		}
+	      else
+		{
+		  ROS_WARN("No /shadow/baseline_tolerance is set, using default: %f", baseline_tolerance);
+		}
+	    }
+	  else
+	    {
+	      ROS_ERROR("Neither /shadow/baseline_force nor /shadow/adaptive_baseline does not exits!");
+	      ROS_ERROR("Run the finger_pushing_ini program and/or set the /shadow/adaptive_baseline parameter!");
+	      exit(0);
+	    }
+	  
 	}
     }
   else
@@ -155,7 +221,7 @@ int main(int argc, char **argv)
 	    }
 	  else
 	    {
-	      ROS_ERROR("Neither /shadow/baseline_force nor /shadow/adaptive_baseline does not exits!");
+	      ROS_ERROR("2Neither /shadow/baseline_force nor /shadow/adaptive_baseline does not exits!");
 	      ROS_ERROR("Run the finger_pushing_ini program and/or set the /shadow/adaptive_baseline parameter!");
 	     
 	    }
@@ -163,7 +229,7 @@ int main(int argc, char **argv)
 	}
       else
 	{
-	  ROS_ERROR("Neither /shadow/baseline_force nor /shadow/adaptive_baseline does not exits!");
+	  ROS_ERROR("3Neither /shadow/baseline_force nor /shadow/adaptive_baseline does not exits!");
 	  ROS_ERROR("Run the finger_pushing_ini program and/or set the /shadow/adaptive_baseline parameter!");
 	  exit(0);
 	}
@@ -220,19 +286,17 @@ int main(int argc, char **argv)
 	  finger_pushing.record_max_sensor_data_time(0,exp_duration);
 	  break;
 	case 2:
-	  ROS_INFO("Loosen the screw!\nActive force will now be produced at %.1f%c",100*scale, 0x25);
-          data_file << i << "\t"<< "Active force, scale " << scale << std::endl;
+	  /*ROS_INFO("Loosen the screw!\nTesting position control");         
 	  ROS_INFO("Push the button to active PAM");
 	  finger_pushing.wait_button_push(PUSH_BUTTON, 0.0);
 	 
-	  playback_force = (int) (scale * (force_max-baseline_force)  + baseline_force);
-	  ROS_INFO("playback_force = scale * (force_max-baseline_force) + baseline_force: %d",playback_force);
+	  ROS_INFO("Will keep resting position at: %d",resting_position );
 	  ROS_INFO("Activation of PAM!");
 	  
 	  // Start the PID controllers on SPCU
-	  finger_pushing.set_controller(AIRMUSCLE_FILL_VALVE, FLEXIFORCE_AIRMUSCLE, 4, 2, 0);
-	  finger_pushing.set_controller(AIRMUSCLE_EMPTY_VALVE, FLEXIFORCE_AIRMUSCLE, -4, -2, 0);
-	  finger_pushing.set_target(AIRMUSCLE_FILL_VALVE, playback_force, tol);
+	  finger_pushing.set_controller(AIRMUSCLE_FILL_VALVE, RIGHT_FINGER_ANGLE, 4, 2, 0);
+	  finger_pushing.set_controller(AIRMUSCLE_EMPTY_VALVE, RIGHT_FINGER_ANGLE, -4, -2, 0);
+	  finger_pushing.set_target(AIRMUSCLE_FILL_VALVE, resting_position, tol_rp);
 
 	  ROS_INFO("Push the button to stop");
 	  finger_pushing.wait_button_push(PUSH_BUTTON, 2.0);
@@ -241,6 +305,33 @@ int main(int argc, char **argv)
 	  ROS_INFO("Dectivating PAM...");
 	  finger_pushing.disable_controller(AIRMUSCLE_FILL_VALVE);
 	  finger_pushing.disable_controller(AIRMUSCLE_EMPTY_VALVE);
+	  finger_pushing.empty_pam(); */
+
+	  ROS_INFO("Loosen the screw!\nActive force will now be produced at %.1f%c",100*scale, 0x25);
+          data_file << i << "\t"<< "Active force, scale " << scale << std::endl;
+	  ROS_INFO("Push the button to active PAM");
+	  finger_pushing.wait_button_push(PUSH_BUTTON, 0.0);
+	 
+	  playback_force = (int) (scale * (force_max-baseline_force)  + baseline_force);
+	  ROS_INFO("playback_force = scale * (force_max -baseline_force) + baseline_force: %d",playback_force);
+	  ROS_INFO("Activation of PAM!");
+	  
+	  // Start the PID controllers on SPCU
+	  //finger_pushing.set_controller(AIRMUSCLE_FILL_VALVE, FLEXIFORCE_AIRMUSCLE, 4, 2, 0);
+	  //finger_pushing.set_controller(AIRMUSCLE_EMPTY_VALVE, FLEXIFORCE_AIRMUSCLE, -4, -2, 0);
+	  finger_pushing.set_controller(AIRMUSCLE_FILL_VALVE, FLEXIFORCE_AIRMUSCLE, 2, 1, 0);
+	  finger_pushing.set_controller(AIRMUSCLE_EMPTY_VALVE, FLEXIFORCE_AIRMUSCLE, -2, -1, 0);
+	  //finger_pushing.set_target(AIRMUSCLE_FILL_VALVE, playback_force, (int) (tol* (1.0+scale) ) );
+	  finger_pushing.set_target(AIRMUSCLE_FILL_VALVE, playback_force, (int)tol);
+
+	  ROS_INFO("Push the button to stop");
+	  finger_pushing.wait_button_push(PUSH_BUTTON, 2.0);
+	  
+	  // Disable the controllers
+	  ROS_INFO("Dectivating PAM...");
+	  finger_pushing.disable_controller(AIRMUSCLE_FILL_VALVE);
+	  finger_pushing.disable_controller(AIRMUSCLE_EMPTY_VALVE);
+	  finger_pushing.set_target(AIRMUSCLE_FILL_VALVE, 0, 0);   // Remove target
 	  finger_pushing.empty_pam();
 	  ROS_INFO("Done!\n");
 	  break;
