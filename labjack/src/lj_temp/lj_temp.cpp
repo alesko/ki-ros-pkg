@@ -104,59 +104,8 @@ LabjackTemp::LabjackTemp(): private_nh_("~"), publish_rate_(1), publish_duration
   StreamStop();
 
   counter_ = 0;
-  //std::string dev;
-  //std::string searched_param;
-  //double publish_freq;
-
-  //ROS_INFO("Creating a PAM node");
-    
-  //shadow_ = shadowInitialize();
-
-  // Find the Shadow prefix
-  //private_nh_.searchParam("pam_prefix", searched_param);
-  //private_nh_.param(searched_param, prefix_, std::string());
-
-  // set path to SPCU
-  //std::string full_topic = prefix_ + "/path_to_labjack";  // Necessary??
-  /*std::string full_topic = prefix_ + "/path_to_labjack";  // Necessary??
-  if (private_nh_.getParam(full_topic, dev))
-    {
-      ROS_INFO("Path to SPCU is: %s", dev.c_str());
-    }
-  else
-    {
-      ROS_ERROR("Unable to determine path to SPCU, full_topic=%s", full_topic.c_str());
-      return;
-    }
-  */
-  //strcpy(shadow_->dev.ttyport, dev.c_str());
-
-  //private_nh_.searchParam("/spcu_publish_frequency", searched_param);
-  //private_nh_.param(searched_param, prefix_, std::string());
-
-
-  // set publish frequency from parameter server
-  /*
-  full_topic = prefix_ + "/spcu_publish_frequency";    
-
-  if (private_nh_.getParam(full_topic, publish_freq))
-    {      
-      ROS_INFO("Frequency from %s is %f", full_topic.c_str(), publish_freq);
-      publish_rate_ = Rate(publish_freq);      
-    }
-  
-  ROS_INFO("Shadow SPCU node is created");
-  */
-
-}
-
-/*LabjackTemp::LabjackTemp(std::string dev) : private_nh_("~"), publish_rate_(100) //publish_rate_(60)
-{
-    
-  //shadow_ = shadowInitialize();
-  //strcpy(shadow_->dev.ttyport, dev.c_str());
  
-}*/
+}
 
 LabjackTemp::~LabjackTemp(void)  //Destructor destorys object, ~ needed
 {
@@ -192,54 +141,6 @@ void LabjackTemp::init()
   //first_update_ = true;
   
   ain_reading_pub_ = private_nh_.advertise<labjack::temperatures>("/labjack/temp",msg_que_len );
-
-
-  /*if (shadowDeviceConnectPort(&shadow_->dev) < 0) 
-    {
-      ROS_FATAL("Unable to connect shadow at %s\n", shadow_->dev.ttyport);
-      private_nh_.shutdown();
-      return;   
-    }
-  else
-  {
-      ROS_INFO("Connected to device");
-      //publishes sensor readings
-      //std::string prefix;
-      //std::string searched_param;
-      //private_nh_.searchParam("shadow_prefix", searched_param);
-      //private_nh_.param(searched_param, prefix_, std::string());
-      std::string full_topic = prefix_ + "/sensor_msg";
-      ROS_INFO("Starting publisher!");
-      labjack_pub_ = private_nh_.advertise<shadow::ShadowSensors>(full_topic,msg_que_len );
-      full_topic = prefix_ + "/target_msg";
-      target_pub_ = private_nh_.advertise<shadow::ShadowTargets>(full_topic,msg_que_len );
-   }
-    
-  // ***** Parameters *****
-
-  ROS_INFO("Retrieving module state");
-  shadowHexStatus(shadow_);  
-  shadowPrintParams(&shadow_->par);
-     
-  //sensor_reading_pub_ = private_nh_.advertise<shadow::Sensors>("sensors_pub", 100);
-
-  ROS_INFO("Starting services!");
-  system_status_srv_ = private_nh_.advertiseService("get_status", &ShadowNode::getStatus,this);
-  set_valves_srv_ = private_nh_.advertiseService("set_valves", &ShadowNode::setValves,this);
-  pulse_valves_srv_ = private_nh_.advertiseService("pulse_valves", &ShadowNode::pulseValves,this);
-  sensor_reading_srv_ = private_nh_.advertiseService("get_sensor_readings", &ShadowNode::getSensorReading,this);
-  targets_srv_ = private_nh_.advertiseService("set_targets", &ShadowNode::setTargets,this);
-  contoller_srv_ = private_nh_.advertiseService("enable_controller", &ShadowNode::setController,this);
-  contoller_target_srv_ = private_nh_.advertiseService("enable_controller_target", &ShadowNode::setControllerwTarget,this);
-  disable_contoller_srv_ = private_nh_.advertiseService("disable_controller", &ShadowNode::disController,this);*/
-
-  /*pulse_valves_srv_ = private_nh_.advertiseService("pulse_valves", &LabjackTemp::pulseValves,this);
-  targets_srv_ = private_nh_.advertiseService("set_targets", &LabjackTemp::setTargets,this);
-  publishing_srv_ = private_nh_.advertiseService("publishing_service", &LabjackTemp::setPublishing,this);
-
-  temperature_srv_ = private_nh_.advertiseService("temperature", &LabjackTemp::getTemperatureResistance,this);
-  currents_srv_ = private_nh_.advertiseService("cal_currents", &LabjackTemp::getCalibratedCurrents,this);
-  ain_srv_ = private_nh_.advertiseService("get_ain", &LabjackTemp::getAIN,this);*/
 
   publishing_ = true;
 
@@ -537,14 +438,7 @@ int LabjackTemp::StreamData()
     recChars = 0;
     autoRecoveryOn = 0;
 
-    //ROS_INFO("Reading Samples...\n");
-
-    //startTime = getTickCount();
-
-    //    for (i = 0; i < numDisplay; i++)
-    //{
-    //for(j = 0; j < numReadsPerDisplay; j++)
-    //{
+ 
     /* For USB StreamData, use Endpoint 3 for reads.  You can read the multiple
      * StreamData responses of 64 bytes only if SamplesPerPacket is 25 to help
      * improve streaming performance.  In this example this multiple is adjusted
@@ -643,20 +537,14 @@ int LabjackTemp::StreamData()
 	  packetCounter_++;
       }
 
-    //ROS_INFO("Number of scans: %d", scanNumber);
-    //ROS_INFO("Total packets read: %d", totalPackets_);
-    //ROS_INFO("Current PacketCounter: %d", ((packetCounter_ == 0) ? 255 : packetCounter_-1));
-    //ROS_INFO("Current BackLog: %d", backLog);
     time_ = ros::Time::now() - start_time_;
     data_file_ << time_.toSec()  ;
-    //labjack_mutex_.lock();
     
     for(k = 0; k < NumChannels_-1; k=k+2) // Single ended
       {	   
 	ain_[k] = voltages[scanNumber - 1][k];
 	ain_[k+1] = voltages[scanNumber - 1][k+1];
-	temp_[k/2] =  volts2temperature(voltages[scanNumber - 1][k]- voltages[scanNumber - 1][k+1]);
-	
+	temp_[k/2] =  volts2temperature(voltages[scanNumber - 1][k]- voltages[scanNumber - 1][k+1]);	
 	//data_file_ << "\t" << voltages[scanNumber - 1][k]; //volts2temperature(voltages[scanNumber - 1][k] ); //volt2temperature(g_ain_data[3],true)
 	data_file_ << "\t" << volts2temperature(voltages[scanNumber - 1][k]- voltages[scanNumber - 1][k+1]);
       }
@@ -671,14 +559,6 @@ int LabjackTemp::StreamData()
 	temp1_vec_.erase(temp1_vec_.begin());//	temp1_vec_.pop_front();
 	temp2_vec_.erase(temp2_vec_.begin());//temp2_vec_.pop_front();
       }
-
-
-    //  ROS_INFO("  AI%d: %.4f V", k, voltages[scanNumber - 1][k]);
-    //}
-    
-    //endTime = getTickCount();
-    //ROS_INFO("\Rate of samples: %.0lf samples per second", (scanNumber*NumChannels_)/((endTime - startTime)/1000.0));
-    //ROS_INFO("Rate of scans: %.0lf scans per second", scanNumber/((endTime - startTime)/1000.0));
     
     return 0;
 }
@@ -824,15 +704,7 @@ void LabjackTemp::publish()
   double sum;
 
   temp_msg_.header.stamp = ros::Time::now();    
-   // Put the values into a message
-  //labjack_mutex_.lock();
-  /*for( i=0; i < 2; i++)
-    //for( i=0; i < 1; i++)
-    {
-      //labjack_mutex_.lock();
-      temp_msg_.temp[i] = temp_[i];
-      //labjack_mutex_.unlock();
-    }*/
+
   sum = accumulate(temp1_vec_.begin(), temp1_vec_.end(),0.0);
   temp_[0] = sum / (double)temp1_vec_.size();
   sum = accumulate(temp2_vec_.begin(), temp2_vec_.end(),0.0);
@@ -856,10 +728,7 @@ void LabjackTemp::publish()
 
 bool LabjackTemp::spin()
 {
-  //unsigned short  sensor_val[8];
-  //ros::Rate r(10); // 10 ms or 100 Hz ??
-
-
+ 
   // Test steraming
   double my_data[14];
   int i;
@@ -877,275 +746,12 @@ bool LabjackTemp::spin()
 	    }
 	}
       
-      //getSensorReading();
       StreamData();
-      //ros::spinOnce(); //Needed for callbacks
-      //publish_rate_.sleep(); //
-
+  
       // Increase the "clock" by one tick
       counter_++;
-      //ROS_INFO("Counter %d",counter_);
-      //getAINdata(my_data);
-    }
-  
-  return true;
-}
-
-
-
-
-
-
-
-
-
-
-
-//Sends a Feedback low-level command that configures digital directions,
-
-/*
-int LabjackTemp::SetDO(uint8 fio, uint8 eio, uint8 cio) 
-{
-  uint8 sendBuff[14], recBuff[10]; //
-    int sendChars, recChars;
-    int len= 14;
-    int r_len= 10;
-    uint16 binVoltage16, checksumTotal;
-    uint8 state;
-
-    sendBuff[1] = (uint8)(0xF8);  //Command byte
-    //sendBuff[2] = 11;             //Number of data words (.5 word for echo, 10.5
-                                  //words for IOTypes and data)
-    sendBuff[2] = 0x04;             //Number of data words 
-
-    sendBuff[3] = (uint8)(0x00);  //Extended command number
-    sendBuff[6] = 0;     //Echo
-
-
-    // Set digital out
-    sendBuff[7]  = 0x1B; //27;  // Changed to 11 = BitStateWrite 
-    sendBuff[8]  = 0xFF; // WriteMask determine if the corresponding bit shouldf be updated
-    sendBuff[9]  = 0xFF;
-    sendBuff[10] = 0xFF;
-    sendBuff[11] = fio;
-    sendBuff[12] = eio;
-    sendBuff[13] = cio;
-
-        // Read the analog input
-    //sendBuff[14] = 0x02;
-    //sendBuff[15] = 0x00; // Positive Channel
-    //sendBuff[16] = 0x00; // Bit 0-3: Resolution Index
-                         // Bit 4-7: GainIndex
-    //sendBuff[17] = 0x00; // Bit 0-2: Settling factor
-                         // Bit 7:   Differetial
-			 
-    extendedChecksum(sendBuff, len);
-
-    //Sending command to U6
-    if( (sendChars = LJUSB_BulkWrite(h_device_, U6_PIPE_EP1_OUT, sendBuff, len)) < len)
-    {
-        if(sendChars == 0)
-            ROS_INFO("Feedback setup error : write failed");
-        else
-            ROS_INFO("Feedback setup error : did not write all of the buffer");
-        return -1;
-    }
-
-    //Reading response from U6
-    if( (recChars = LJUSB_BulkRead(h_device_, U6_PIPE_EP2_IN, recBuff, r_len)) < r_len)
-    {
-        if(recChars == 0)
-        {
-            ROS_INFO("Feedback setup error : read failed");
-            return -1;
-        }
-        else
-	  {
-            //ROS_INFO("Feedback setup error : did not read all of the buffer");
-	  }
-    }
-
-    checksumTotal = extendedChecksum16(recBuff, r_len);
-    if( (uint8)((checksumTotal / 256 ) & 0xff) != recBuff[5])
-    {
-      ROS_INFO("Feedback setup error : read buffer has bad checksum16(MSB)");
-        return -1;
-    }
-
-    if( (uint8)(checksumTotal & 0xff) != recBuff[4])
-    {
-        ROS_INFO("Feedback setup error : read buffer has bad checksum16(LBS)");
-        return -1;
-    }
-
-    if( extendedChecksum8(recBuff) != recBuff[0])
-    {
-        ROS_INFO("Feedback setup error : read buffer has bad checksum8");
-        return -1;
-    }
-
-    if( recBuff[1] != (uint8)(0xF8) || recBuff[2] != 2 || recBuff[3] != (uint8)(0x00) )
-    {
-        ROS_INFO("Feedback setup error : read buffer has wrong command bytes ");
-        return -1;
-    }
-
-    if( recBuff[6] != 0)
-    {
-        ROS_INFO("Feedback setup error : received errorcode %d for frame %d in Feedback response. ", recBuff[6], recBuff[7]);
-        return -1;
-    }
-
-    return 0;
-}
-*/
-
-/*bool LabjackTemp::getAINdata(double data[14])
-{
-  int i;
-  for( i=0; i < 14; i++)
-    {
-      labjack_mutex_.lock();
-      data[i] = ain_[i];
-      labjack_mutex_.unlock();
-    }
-
-  return true;
-  }*/
-
- /*
-bool LabjackTemp::getTemperatureResistance(labjack::GetTemperature::Request& req, labjack::GetTemperature::Response& resp) 
-{
-
-  double dblVoltage;
-  int ain = req.ain_number;
-  int cur = req.current_number;
-  if (cur > 1)
-    ROS_ERROR("No current output with this number");
-  if (ain > 14)
-    ROS_ERROR("No analog input with number %d",ain);
-  
-  if((error_ = eAIN(h_device_, &cali_info_, ain, 15, &dblVoltage, 0, 0, 0, 0, 0, 0)) != 0)
-    {
-      ROS_WARN("Unable to aquire data");
-      return false;
-    }
-  
-  double res = dblVoltage/cali_info_.ccConstants[20+cur]; 
-  
-  resp.header.stamp = ros::Time::now();  
-  resp.temp_res = res;
-
-  return true;
-}
- */
-  /*
-bool LabjackTemp::getCalibratedCurrents(labjack::GetCurrents::Request& req, labjack::GetCurrents::Response& resp) 
-{
-
-  resp.cal_current_10uA  = cali_info_.ccConstants[20]; 
-  resp.cal_current_200uA = cali_info_.ccConstants[21]; 
-
-  return true;
-}
-  */
-
-   /*
-bool LabjackTemp::setPublishing(labjack::StartPublishing::Request& req, labjack::StartPublishing::Response& resp) //startpublishing is a srv
-{
-  if(req.start) //start from srv file
-    {
-      if( StreamConfig() != 0 )
-	ROS_WARN("LabJack is not properly configured !");
-      if( StreamStart() != 0)
-	ROS_WARN("LabJack data streaming won't start!");
-
-      ROS_INFO("Labjack is now publishing sensor data");
-      publishing_ = true;
-      resp.state = true;
-    }
-  else
-    {
-      StreamStop();
-      ROS_INFO("Labjack has stopped publishing");
-      publishing_ = false;
-      resp.state = false;
-     }
-  return true;
-}
-   */
-
-    /*
-bool LabjackTemp::isPublishing()
-{
-  if (publishing_)
-    {
-      return true;
-    }
-  else
-    {
-      return false;
-    }
-}
-    */
-
-     
-
-
-int LabjackTemp::tdac_example() //HANDLE hDevice, u6TdacCalibrationInfo *caliInfo)
-{
-
-    int err;
-    uint8 options, speedAdjust, sdaPinNum, sclPinNum, address, numBytesToSend, numBytesToReceive, errorcode;
-    uint16 binaryVoltage;
-    uint8 bytesCommand[5];
-    uint8 bytesResponse[64];
-    uint8 ackArray[4];
-    int i;
-
-    err = 0;
-
-    //Setting up parts I2C command that will remain the same throughout this example
-    options = 0;             //I2COptions : 0
-    speedAdjust = 0;         //SpeedAdjust : 0 (for max communication speed of about 130 kHz)
-    sdaPinNum = 3;           //SDAPinNum : FIO3 connected to pin DIOB
-    sclPinNum = 2;           //SCLPinNum : FIO2 connected to pin DIOA
-
-
-    /* Set DACA to 0 or 5 volts. */
-    if( do_state_ == true)
-      {
-	do_state_ = false;
-	getTdacBinVoltCalibrated(&cali_dac_info_, 0, 0.0, &binaryVoltage);
-	// Open valve
       }
-    else
-      {
-	do_state_ = true;
-	getTdacBinVoltCalibrated(&cali_dac_info_, 0, 5.0, &binaryVoltage);
-	//Close valve
-      }
-    
-    //Setting up I2C command
-    //Make note that the I2C command can only update 1 DAC channel at a time.
-    address = (uint8)(0x24);  //Address : h0x24 is the address for DAC
-    numBytesToSend = 3;       //NumI2CByteToSend : 3 bytes to specify DACA and the value
-    numBytesToReceive = 0;    //NumI2CBytesToReceive : 0 since we are only setting the value of the DAC
-    bytesCommand[0] = (uint8)(0x30);  //LJTDAC command byte : h0x30 (DACA)
-
-    //getTdacBinVoltCalibrated(&cali_dac_info_, 0, 5.0, &binaryVoltage);
-    bytesCommand[1] = (uint8)(binaryVoltage/256);          //value (high)
-    bytesCommand[2] = (uint8)(binaryVoltage & (0x00FF));   //value (low)
-
-    //Performing I2C low-level call
-    err = I2C(h_device_, options, speedAdjust, sdaPinNum, sclPinNum, address, numBytesToSend, numBytesToReceive, bytesCommand, &errorcode, ackArray, bytesResponse);
-
-    /*if(checkI2CErrorcode(errorcode) == -1 || err == -1)
-      {
-        ROS_WARN("Error in writing I2C");
-	return -1;
-	}*/
-    return 1;
-
+  
+  return true;
 }
 
