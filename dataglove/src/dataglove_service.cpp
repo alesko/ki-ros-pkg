@@ -34,9 +34,6 @@
  *
  *********************************************************************/
 
-/* This code is built from Ugo Cupcic <ugo@shadowrobot.com> code for
-   Cyberglove in ROS 
-*/
 
 
 #include <ros/ros.h>

@@ -70,7 +70,7 @@ int servoReset(servo_device_p dev)
   return 1;
 }
 
-int servoFirmwareVersion(servo_device_p dev)
+int servoFirmwareVersion(servo_device_p dev, int *major, int *minor)
 {
   unsigned char cmd[MAX_NUM_CHAR];
   //int i,j,k;
@@ -81,14 +81,17 @@ int servoFirmwareVersion(servo_device_p dev)
     printf("%.2x ",cmd[k]);
     }*/
   servoSendReceiveCommand(dev->fd, cmd,strlen(cmd), &answer,3 );
-  //printf("\n%s\n\n",answer);
+  *major = answer[0]-0x30; // ASCII to int
+  *minor = answer[2]-0x30; // ASCII to int
+
+  printf("Version %d.%d\n\n",answer[0],answer[2]);
 
   return 1;
 }
 
 int servoReportPosition(servo_device_p dev, unsigned char ch, int *pos)
 {
-  printf("servoReportPosition\n");
+  //printf("servoReportPosition\n");
   unsigned char cmd[MAX_NUM_CHAR];
   //int i,j,k;
   unsigned char answer[MAX_NUM_CHAR];
@@ -116,6 +119,10 @@ int servoSetPosition(servo_device_p dev, unsigned char ch, unsigned char ra,
   unsigned char answer[MAX_NUM_CHAR];
   
   unsigned char pwlow,pwhigh;
+  if( pos > MAX_POS )
+    pos = MAX_POS;
+  if(pos < MIN_POS ) 
+    pos = MIN_POS;
   pwlow  = (unsigned char) pos;
   pwhigh = (unsigned char) (pos>>8);
 

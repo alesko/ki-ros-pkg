@@ -33,7 +33,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *********************************************************************/
-#include "lj_temp.h"
+#include "lj_gsr.h"
 
 //#include "control_class.h"
 //#include "shadow_PID.h"
@@ -56,10 +56,10 @@ int main(int argc, char **argv)
     }
   else
   {*/
-      LabjackTemp lj; //Get port id from ROS parameter server
+      LabjackGSR lj; //Get port id from ROS parameter server
       ROS_INFO("Labjack node created");
       lj.init();
-      lj.init_loggfile("../data");
+      //lj.init_loggfile("../data");
       lj.spin(); //Loop
       
       //  }

@@ -2,7 +2,7 @@
  *
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2010, Alexander Skoglund, Karolinska Institute
+ *  Copyright (c) 2011, Alexander Skoglund, Karolinska Institute
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -34,51 +34,27 @@
  *
  *********************************************************************/
 
-
+#include "control_sofia.h"
 #include <ros/ros.h>
 #include <time.h>
-#include "dataglove/dataglove_publisher.h"
-#include "dataglove/dataglove_service.h"
-#include "dataglove/Start.h"
-#include <boost/smart_ptr.hpp>
-using namespace dataglove_publisher;
-using namespace dataglove_service;
 
-
-
-/////////////////////////////////
-//           MAIN              //
-/////////////////////////////////
-
-
-/** 
- *  Start the dataglove publisher.
- *
- * @param argc 
- * @param argv 
- * 
- * @return -1 if error (e.g. no glove found)
- */
-
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
 
-  ros::init(argc, argv, "dataglove_publisher");
-  //NodeHandle n;
-  boost::shared_ptr<DataglovePublisher> dataglove_pub(new DataglovePublisher());
-  dataglove_pub->GloveInit();
-  dataglove_pub->initCallback();
+  ros::init(argc, argv, "Control"); //Control node ros initialization
+  ros::start();
+  
+  sleep(5);
+  Mscl_control ctrl;
 
-
-  DatagloveService service(dataglove_pub);  
- 
-  while( ros::ok() )    
-    {
-      if(dataglove_pub->isPublishing()){
-        dataglove_pub->publish();
-        }
-      //else{ros::spinOnce();sleep(100);}
+  ROS_INFO("Control object created");
+  ctrl.init();
+  while(ros::ok()) //status?
+    {        
+      ctrl.spin(); //Loop
     }
-
+  
   return 0;
+
 }
+

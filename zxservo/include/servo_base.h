@@ -51,7 +51,10 @@ extern "C" {
 #define MAX_NUM_CHAR                 256
 #define MAX_NUM_LOOPS                100
 #define MAX_LOOP                       1000
-#define NUM_CHANNELS 16
+#define NUM_CHANNELS 2
+#define MAX_POS 1120
+#define MIN_POS 340
+
 
 // Mask commands
   enum MASK_ACTION {HOLD,FILL,EMPTY,DONT_CARE};

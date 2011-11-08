@@ -1,0 +1,21 @@
+<package>
+  <description brief="karolina">
+
+     karolina
+
+  </description>
+  <author>Alexander Skoglund</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/karolina</url>
+  <depend package="std_msgs"/>
+  <depend package="rospy"/>
+  <depend package="roscpp"/>
+<rosdep name="labjackusb"/>
+  <export>
+    <cpp cflags="-I${prefix}/msg/cpp -I${prefix}/srv/cpp" lflags="-L${prefix}/lib -lm -L${prefix}/usr/local/lib "/>
+  </export>
+
+</package>
+
+

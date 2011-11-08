@@ -101,7 +101,7 @@ ServoClass::ServoClass(): node_("~"), publish_rate_(50)
 
 
   // set publish frequency from parameter server
-  full_topic = prefix_ + "/servo_publish_frequency";    
+  full_topic = prefix_ + "/publish_frequency";    
 
   if (node_.getParam(full_topic, publish_freq))
     {      
@@ -117,6 +117,7 @@ ServoClass::ServoClass(): node_("~"), publish_rate_(50)
 ServoClass::~ServoClass()
 {
   ROS_INFO("Closing servo" );
+  servoReset(&servo_->dev);
   servoReset(&servo_->dev);
   servoDeviceClosePort(&servo_->dev);
   ROS_INFO("Servo closed, goodbye" );
@@ -181,10 +182,17 @@ void ServoClass::ServoInit()
   disable_contoller_srv_ = private_nh_.advertiseService("disable_controller", &ShadowNode::disController,this);
   publishing_srv_ = private_nh_.advertiseService("publishing_service", &ShadowNode::setPublishing,this);
 */
+
+  set_position_srv_ = node_.advertiseService("set_position_service", &ServoClass::setPosition,this);
   
+
+  int maj, min;
+  servoFirmwareVersion(&servo_->dev,&maj,&min);
+  ROS_INFO("Servo is ready!");
+
   servoSetBaudrate(&servo_->dev);
   publishing_ = true; //false;
-  ROS_INFO("Servo is ready!");
+  ROS_INFO("Servo firmware version is: %d.%d",maj,min);
   /*int left=0;
 
   int pos0;
@@ -213,6 +221,23 @@ void ServoClass::ServoInit()
   servoSetPosition(&servo_->dev, 0x02, 0x00, 1200);
   servoFirmwareVersion(&servo_->dev);
   */
+
+}
+
+
+bool ServoClass::setPosition(zxservo::SetPositions::Request& req, zxservo::SetPositions::Response& resp)
+{ 
+
+  int i;
+  for(i=0; i < NUM_CHANNELS; i++)
+    {
+      if ( req.position[i] != 0 )
+	{
+	  ROS_INFO("Requestiond position %d",req.position[i]);
+	  servoSetPosition(&servo_->dev, i, req.ramp[i],req.position[i]);
+	}
+    }
+  return true;
 
 }
 
@@ -427,34 +452,26 @@ void ServoClass::publish()
 {
  
   int i;
-  //unsigned short  sensor_val[8];
-  //shadow_mutex_.lock();
-  // Read the sensor values
-  //shadowHexReadSensors(&shadow_->dev,sensor_val);
-  //shadow_mutex_.unlock();
-  //sensor_msg_.header.stamp = ros::Time::now();    
-  //target_msg_.header.stamp = ros::Time::now();
   positions_msg_.header.stamp = ros::Time::now();
   int pos[NUM_CHANNELS];
+  
+  ros::Time start;
+  ros::Duration dt;
+  /*
+  // Put the values into a message
   for(i=0; i < NUM_CHANNELS; i++)
     {
-      // Measure the time for this function!!!
-      servoReportPosition(&servo_->dev, 0x00, &pos[i]);
-      positions_msg_.pos[i] = 0; //pos[i];
+      start = ros::Time::now();
+      //servoReportPosition(&servo_->dev, i, &pos[i]);
+      dt =  ros::Time::now()-start;
+      ROS_INFO("servoReportPosition took : %f", dt.toSec() );
+      
+      positions_msg_.pos[i] = pos[i];
     }
-  // Put the values into a message
-  //for(i=0; i < NUM_VALVES; i++)
-  //  sensor_msg_.sensor[i] = sensor_val[i];
-
-  // Put the values into a message
-  //for(i=0; i < NUM_VALVES; i++)
-  //  target_msg_.target[i] = set_target_[i];
-
    
   //publish the msgs
-  //shadow_pub_.publish(sensor_msg_);
-  //target_pub_.publish(target_msg_);
   position_pub_.publish(positions_msg_);
+  */
 
 }
 

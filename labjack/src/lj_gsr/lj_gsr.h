@@ -33,8 +33,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *********************************************************************/
-#ifndef LABJACK_TEMP
-#define LABJACK_TEMP
+#ifndef LABJACK_GSR
+#define LABJACK_GSR
 
 
 #include <u6.h>
@@ -48,10 +48,10 @@
 #include <fstream>
 
 // messages
-#include <labjack/temperatures.h>
+#include <labjack/gsr.h>
 
 
-class LabjackTemp
+class LabjackGSR
 {
  private: //Only class can operate below
 
@@ -70,7 +70,7 @@ class LabjackTemp
   int rate_;
 
   std::ofstream data_file_; // Data storange, all data
-  std::ofstream temp_file_; // Mean temp, low freq storange
+  std::ofstream gsr_file_; // Mean temp, low freq storange
   char* path_;
 
   ros::Duration time_;
@@ -84,54 +84,19 @@ class LabjackTemp
   ros::Publisher ain_reading_pub_;
   /*ros::Publisher shadow_pub_;
   ros::Publisher valve_state_pub_;
-  ros::Publisher target_pub_;
-  ros::Publisher sensor_reading_pub_;
+
 
   ros::ServiceServer sensor_reading_srv_;  
-  ros::ServiceServer system_status_srv_;
-  ros::ServiceServer set_valves_srv_;
-  ros::ServiceServer pulse_valves_srv_;
-  //ros::ServiceServer contoller_srv_;
-  ros::ServiceServer contoller_target_srv_;
-  ros::ServiceServer disable_contoller_srv_;
-  ros::ServiceServer targets_srv_;
-  ros::ServiceServer publishing_srv_;
-  ros::ServiceServer temperature_srv_;
-  ros::ServiceServer currents_srv_;
-  ros::ServiceServer ain_srv_;*/
-  // SPCU commands
-  //bool setValves(shadow::SetValves::Request& req, shadow::SetValves::Response& resp);
-  //bool pulseValves(labjack::PulseValves::Request& req, labjack::PulseValves::Response& resp);
-  //bool getSensorReading(shadow::GetSensors::Request& req, shadow::GetSensors::Response& resp);*/
-  //bool setController(shadow::SetController::Request& req, shadow::SetController::Response& resp);
-  //bool setControllerwTarget(shadow::SetControllerwTarget::Request& req, shadow::SetControllerwTarget::Response& resp);
-  //bool setTargets(labjack::SetTargets::Request& req, labjack::SetTargets::Response& resp);
-  //bool disController(shadow::DisableController::Request& req, shadow::DisableController::Response& resp);
-  //bool getStatus(shadow::GetStatus::Request& req, shadow::GetStatus::Response& resp);
-  
-  /*  bool setPublishing(labjack::StartPublishing::Request &req, labjack::StartPublishing::Response &resp);
-  bool getTemperatureResistance(labjack::GetTemperature::Request& req, labjack::GetTemperature::Response& resp); 
-  bool getCalibratedCurrents(labjack::GetCurrents::Request& req, labjack::GetCurrents::Response& resp);
-  bool getAIN(labjack::GetAIN::Request& req, labjack::GetAIN::Response& resp);*/
-  // Controller stuff
-  /*control_toolbox::Pid pid_controller_;
-  ros::Time time_of_last_cycle_;
-  ros::ServiceServer controller_srv_;*/
-
-  // Interna variables
-  /*shadow::ShadowSensors sensor_msg_;
-  shadow::ShadowTargets target_msg_;
-  shadow::Valves valve_states;
-
-  int  set_target_[NUM_VALVES];
   */
+  
+  
   // Messange
   //labjack::Sensors ain_msg_;
   double ain_[14];
-  double temp_[2];
+  double gsr_[2];
   //vector<double> temp_vec_;
-  std::vector<double> temp1_vec_,temp2_vec_;
-  labjack::temperatures temp_msg_;
+  std::vector<double> gsr1_vec_,gsr2_vec_;
+  labjack::gsr gsr_msg_;
   int buffersize_ ;
   
   //double target_values_[NUM_VALVES];
@@ -151,6 +116,9 @@ class LabjackTemp
 
   int packetCounter_ ;
   int totalPackets_ ;
+  unit8 SettlingFactor_ ;
+  unit8 ScanConfig_ ;
+  unit8 GainIndex_ ;
   /*
     const uint8 NumChannels = 5;        //For this example to work proper, SamplesPerPacket needs
     //to be a multiple of NumChannels.
@@ -173,9 +141,9 @@ class LabjackTemp
   bool differtialEnable_;
  public:
 
-  LabjackTemp(); //Constructor
+  LabjackGSR(); //Constructor
   //LabjackTemp(std::string dev); //Constuctor with args
-  ~LabjackTemp(); //Destructor
+  ~LabjackGSR(); //Destructor
   void init();
   bool spin();
   
