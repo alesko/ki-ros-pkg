@@ -54,11 +54,18 @@
 namespace enc = sensor_msgs::image_encodings;
 
 static const char WINDOW[] = "Image window";
+
 int ghighInt;
 void switch_callback_h( int position ){
   ghighInt = position;
 }
 
+int gCond;
+void switch_callback_cond( int cond ){
+  gCond = cond;
+}
+
+/*
 int gblur;
 void swith_callback( int position ){
   gblur = position;
@@ -67,7 +74,7 @@ void swith_callback( int position ){
 int galpha;
 void swith_callback_alpha( int position ){
   galpha = position;
-}
+}*/
 
 GLvoid OnReshape(GLint w, GLint h)
   {
@@ -80,75 +87,73 @@ class ImageConverter
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_r_sub_;
   image_transport::Subscriber image_l_sub_;
-  image_transport::Publisher image_r_pub_;
-  image_transport::Publisher image_l_pub_;
-  
+
+  cv::Mat warp_mat_; 
+  cv::Mat clone_mat_;
+  //  cv::Mat out_mat_;
+  cv::Mat stereoDisplay_;
+
+  IplImage* cv_input_;
+  IplImage* warp_; 
+  IplImage* frame_;
+
+  ros::Rate publish_rate_;
+
   int maxstretch_; // = 400;
   int trackpos_; // = maxstretch;
-  int  blurpos_;
-  int maxblur_;
-  int  alphapos_;
-  int maxalpha_;
-  float inc_; // = (((float)pp_size*2)/maxstretch)/2;
-  int percent_; //1 = (long) percent;
-  
-  //frame = cvQueryFrame( c_capture );
-  IplImage* warp_; // = cvCreateImage (cvGetSize(frame), IPL_DEPTH_8U, 3);
-  IplImage* frame_; // = GetThresholdedImage(warp);
-  cv::Mat background_; // = GetThresholdedImage(warp);
+  float inc_;
+  int percent_;
+  float tp_;
+  int cond_;
+  int  maxcond_;
+  float factor_;
+
+  float left_corner_pos_;
+  float right_corner_pos_;
+
+  float top_left_;
+  float top_right_;
   bool first_time_;
 
-  //cvBridge bridge_;
-  //sensor_msgs::CvBridge bridge_;
-  //IplImage *cv_input_;
-
-  CvPoint2D32f frameTri_[3], warpTri_[3];		
-  float l_;// = 0.00;
-  float r_;// = 0.00;
+  cv::Point2f frameTri_[3], warpTri_[3];		
   
-  int pp_size_; // = 80;// percentage size of participant compared to mannequin x2
-
-
+  int pp_size_; // percentage size of participant compared to mannequin x2
   int viewport_width_ ;
   int viewport_height_ ;
 
-  cv::Mat out_mat_;
-  cv::Mat stereoDisplay_;
-  ros::Rate publish_rate_;
 
 public:
 
   ImageConverter()
     : it_(nh_),publish_rate_(60)
   {
-    image_l_pub_ = it_.advertise("/opencvimg/left", 1);
-    image_r_pub_ = it_.advertise("/opencvimg/right", 1);
+
     image_r_sub_ = it_.subscribe("/right/camera/image_rect_color", 1, &ImageConverter::imageCbr, this);
     image_l_sub_ = it_.subscribe("/left/camera/image_rect_color", 1, &ImageConverter::imageCbl, this);
 
-    //cv::namedWindow(WINDOW);
 
     maxstretch_= 400;
+    maxcond_ = 3;
     trackpos_ =  maxstretch_/2; 
-    //cvCreateTrackbar("Streching:", WINDOW, &trackpos_, maxstretch_, switch_callback_h);
-    l_ = 0.00;
-    r_ = 0.00;
+
+    left_corner_pos_ = 0.00; //left position on picture
+    right_corner_pos_ = 0.00;//right position on picture    
+
+    cond_ = 1;  
+    factor_ = 0;
+
+    top_left_ = -0.00;
+    top_right_ = 0;
 
     inc_ = (((float)pp_size_*2)/maxstretch_)/2;
-    pp_size_ = 80;
-
-    blurpos_ = 50;
-    maxblur_ = 100;
-
-    alphapos_ = 100;
-    maxalpha_ = 100;
+    pp_size_ = 80; // percentage size of participant compared to mannequin x2
 
     first_time_ = true;
-    //out_mat_(240,320,CV_32F);
 
-    viewport_width_ = 320*2; //320*2;
+    // Change according to camera
+    viewport_width_ = 320*2; // For stereo twice the width is needed
     viewport_height_ = 240;
-      //1024,768
+
   }
 
   ~ImageConverter()
@@ -156,102 +161,114 @@ public:
     cv::destroyWindow(WINDOW);
   }
 
-  void myblur(cv::Mat mat  )
+  int control_window(cv::Mat mat)
   {
-    //IplImage* image(mat);
-    cv::namedWindow( "In" );
-    cv::namedWindow( "Out" );
-    cv::imshow( "In", mat );
-    //    cv::cvSmooth
-    CvSize b_size=cvSize(15,15); //=cvSize(3,3);
-    cv::Mat out(mat.size(), mat.type() );
-    cvCreateTrackbar("Blur", "Out", &blurpos_, maxblur_,swith_callback );
-    cv::GaussianBlur( mat, out, b_size, ((float)gblur/100) );
+    
+    cv::Size size = mat.size();
+    int w = size.width;
+    int h = size.height;    
 
-    cv::imshow( "Out", out );
+    cv::namedWindow( "Control window" );
+    cv::imshow( "Control window", mat);
+    cvCreateTrackbar("Streching:", "Control window", &trackpos_, maxstretch_, switch_callback_h);
+    cvCreateTrackbar("Condition", "Control window", &cond_,  maxcond_ ,switch_callback_cond);
 
+    switch(cond_){
+    case 0:
+      tp_ = (80/(100/(float)pp_size_));
+      trackpos_ = (long)tp_ *2;
+      cvSetTrackbarPos("Streching:", "Control window", trackpos_ );
+      break;
+    case 1:
+      trackpos_ = pp_size_ *2;
+      cvSetTrackbarPos("Streching:", "Control window", trackpos_ );
+      break;
+    case 2:
+      tp_ = (120/(100/(float)pp_size_));
+      trackpos_ = (long)tp_ *2;
+      cvSetTrackbarPos("Streching:", "Control window", trackpos_ );
+    }
 
+    factor_ = (float)trackpos_/400;
+    top_left_ = 0 - factor_;
+    top_right_ = 1 + factor_;
+    left_corner_pos_ = top_left_ + 0.5;
+    right_corner_pos_ = top_right_ - 0.5;
+
+    percent_ = (100/(float)pp_size_)* ((float)trackpos_/2);
+
+    // Set up transformation matices 
+    frameTri_[0].x = 0;
+    frameTri_[0].y = 0;
+    frameTri_[1].x = w - 1;//frame->width - 1;
+    frameTri_[1].y = 0;
+    frameTri_[2].x = 0;
+    frameTri_[2].y = h - 1;
+
+    warpTri_[0].x = w*left_corner_pos_; //topleft
+    warpTri_[0].y = 0.00;
+    warpTri_[1].x = w*right_corner_pos_; //topright
+    warpTri_[1].y = 0.00;    
+    warpTri_[2].x = w*left_corner_pos_;//bottom;left
+    warpTri_[2].y = h;
+    
+    return 1;
   }
 
-  void myalpha(cv::Mat mat  )
-  {
-    //IplImage* image(mat);
-    //cv::namedWindow( "In" );
-    cv::namedWindow( "Blend" );
-    //cv::imshow( "In", mat );
-    //    cv::cvSmooth
-    //CvSize b_size=cvSize(15,15);
-    cv::Mat out(mat.size(), mat.type() );
-    //cvCreateTrackbar("Alpha", "Blend", &blurpos_, maxblur_,swith_callback );
-    cvCreateTrackbar("Alpha", "Blend", &alphapos_, maxalpha_,swith_callback_alpha );
-    float beta = 1-((float)galpha/100);
-    cv::addWeighted(mat, ((float)galpha/100), background_, beta,0.0,out);
-    //cv::GaussianBlur( mat, out, b_size, ((float)gblur/100) );
 
-    cv::imshow( "Blend", out );
+  void stretchMat(cv::Mat mat, bool left)
+  {
+
+    cv::Size size = mat.size();
+    cv::Mat stretched_mat = mat.clone();
+
+    // Do the transformation
+    warp_mat_ = cv::getAffineTransform( frameTri_, warpTri_);
+    cv::warpAffine( mat, stretched_mat, warp_mat_, size);
+    
+    cv::Range col_range;
+
+    if(left)
+      {
+	// Set ROI to be the left view 
+	col_range.start=mat.cols;
+	col_range.end = mat.cols*2;  
+      }
+    else
+      {
+	// Set ROI to be the right view 
+	col_range.start = 0;
+	col_range.end = mat.cols;
+      }
+
+    // Put the transformed image in the correct location
+    cv::Mat roi_mat = stereoDisplay_.colRange(col_range);
+    cv::addWeighted(stretched_mat, 1.0, roi_mat, 0.0 ,0.0,roi_mat);
+
+    roi_mat.release();
+    stretched_mat.release();
+    
   }
-
-  int right_eye(cv::Mat mat)
-  {
-
-    cv::Range col_range_r(mat.cols,mat.cols*2);  
-    cv::Mat roi_mat=stereoDisplay_.colRange(col_range_r);   
-    cv::addWeighted(mat, 1.0, roi_mat, 0.0 ,0.0,roi_mat);
-
-    cv::namedWindow( "Right" );
-    cv::imshow( "Right", stereoDisplay_);
-
-    
-    //    IplImage cv_input_= stereoDisplay_; // No data copying
-    // Create Texture
-    cv::Mat clone_mat = stereoDisplay_.clone();
-    cv::cvtColor(clone_mat,clone_mat, CV_BGR2RGB);
-    IplImage* cv_input_;
-    cv_input_ = &IplImage(clone_mat);
-    gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGB, cv_input_->width, cv_input_->height, GL_RGB, GL_UNSIGNED_BYTE, cv_input_->imageData);
-    
-    
-    //cv::cvtColor(cv_input_,cv_input_, CV_BGR2RGB);
-    //IplImage cv_input_ = stereoDisplay_;
-    //    cv::cvtColor(cv_input_,cv_input_, CV_BGR2RGB);
-    
-    
-
-    return 1;    
-  }
-
-  int left_eye(cv::Mat mat)
-  {
-
-    cv::Range col_range_l(0,mat.cols);  
-    cv::Mat roi_mat=stereoDisplay_.colRange(col_range_l);   
-    cv::addWeighted(mat, 1.0, roi_mat, 0.0 ,0.0,roi_mat);
-
-    return 1;    
-  }
-
-  int mystereo(cv::Mat left, cv::Mat right )
-  {
-
-    
-    /*cv::namedWindow( "Right" );
-    cv::imshow( "Right", right);
-    cv::namedWindow( "Left" );
-    cv::imshow( "Left", left);*/
   
+
+  int map2texture(void)
+  {
+    // Create OpenGL texture
+    clone_mat_ = stereoDisplay_.clone();
+    cv::cvtColor(clone_mat_,clone_mat_, CV_BGR2RGB);    
+    cv_input_ = &IplImage(clone_mat_);
+    gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGB, cv_input_->width, cv_input_->height, GL_RGB, GL_UNSIGNED_BYTE, cv_input_->imageData);
+
     return 1;    
   }
-
 
   void imageCbr(const sensor_msgs::ImageConstPtr& msg)
   {
     cv_bridge::CvImagePtr cv_ptr;
-    //CvMat* warp_mat = cvCreateMat(2,3,CV_32FC1);
 
     try
     {
       cv_ptr = cv_bridge::toCvCopy(msg, enc::BGR8);
-      //cv_input_ = cv_bridge_.imgMsgToCv (msg_ptr, "bgr8");
     }
     catch (cv_bridge::Exception& e)
     {
@@ -266,22 +283,16 @@ public:
 	cv::Mat temp(mat.rows , mat.cols*2, mat.type(), cvScalar(0));
 	stereoDisplay_ = temp.clone();
 	first_time_ = false;
-	background_ = cv_ptr->image;
+	//background_ = cv_ptr->image;
       }
 
+    control_window(cv_ptr->image); 
+    stretchMat(cv_ptr->image, false);
+    map2texture();
 
-    right_eye(cv_ptr->image);
-    //myblur(cv_ptr->image);
-    //myblur(cv_ptr->image);
-    //myalpha(cv_ptr->image);
-    //mystereo(cv_ptr->image, cv_ptr->image);
-    //    if (cv_ptr->image.rows > 60 && cv_ptr->image.cols > 60)
-    //  cv::circle(cv_ptr->image, cv::Point(50, 50), 10, CV_RGB(255,0,0));
-
-    //    cv::imshow(WINDOW, cv_ptr->image);
-    cv::waitKey(3);
+    cv::waitKey(2);
     
-    image_r_pub_.publish(cv_ptr->toImageMsg());
+    // image_r_pub_.publish(cv_ptr->toImageMsg());
   }
 
   void imageCbl(const sensor_msgs::ImageConstPtr& msg)
@@ -302,44 +313,21 @@ public:
       {
 	return;
       }
-    left_eye(cv_ptr->image);
+    stretchMat(cv_ptr->image, true);
 
-    cv::waitKey(3);
+    cv::waitKey(2);
     
-    image_l_pub_.publish(cv_ptr->toImageMsg());
-  }
-  
-  void display()
-  {
-    cv::Mat temp;
-    temp = stereoDisplay_.clone(); 
-    //(mat.rows , mat.cols*2, mat.type(), cvScalar(0));
-
-    //cv::namedWindow( "Stereo" );
-    //cv::imshow( "Stereo", temp);
+    //image_l_pub_.publish(cv_ptr->toImageMsg());
   }
 
-  void displayGL(void)
-  {
-    
-    
-    //cv::Mat temp;
-    //temp = stereoDisplay_.clone(); 
-    //(mat.rows , mat.cols*2, mat.type(), cvScalar(0));
-
-    //cv::namedWindow( "Stereo" );
-    //cv::imshow( "Stereo", temp);
-  }
-
-  
   
   void spin()
   {
     while(ros::ok())
       {
-	//cv::namedWindow( "Right" );
-	//cv::imshow( "Right", stereoDisplay_);
-	//display();
+
+	//map2texture();
+
 	//glutDisplayFunc(displayGL);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_TEXTURE_2D);
@@ -384,10 +372,14 @@ int main(int argc, char** argv)
   //glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH |GLUT_STEREO);
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH );
   
-  glutCreateWindow("Test OpenGL");
-  glutInitWindowSize(1024,768);
+
+  glutInitWindowSize(800,600);
   //  glutReshapeWindow(tap_counter->get_screen_width(),tap_counter->get_screen_height());
   glutInitWindowPosition(0,0); 
+
+ 
+  glutCreateWindow("Test OpenGL");
+  //glutFullScreen();
   //glutReshapeFunc(HandleReshape);
   //glutKeyboardFunc(HandleKeyboard);
   //glutIdleFunc(HandleIdle);

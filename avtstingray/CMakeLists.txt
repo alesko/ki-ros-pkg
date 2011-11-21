@@ -32,3 +32,9 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #target_link_libraries(example ${PROJECT_NAME})
 rosbuild_add_executable(bridge src/cvbridge/main.cpp )
 target_link_libraries(bridge  ${OpenCV_LIBS}  X11 m GL GLU glut)
+
+rosbuild_add_executable(invisiblehand src/cvbridge/invisiblehand.cpp )
+target_link_libraries(invisiblehand  ${OpenCV_LIBS}  X11 m GL GLU glut)
+
+rosbuild_add_executable(stretch src/cvbridge/stretch.cpp )
+target_link_libraries(stretch  ${OpenCV_LIBS}  X11 m GL GLU glut)
