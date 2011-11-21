@@ -81,7 +81,8 @@
 
 // messages
 #include <zxservo/positions.h>
-
+// services
+#include <zxservo/SetPositions.h>
 
 class ServoClass
 {
@@ -141,6 +142,9 @@ class ServoClass
 
   int  set_target_[NUM_VALVES];
 */
+  bool setPosition(zxservo::SetPositions::Request& req, zxservo::SetPositions::Response& resp);
+
+  ros::ServiceServer set_position_srv_;
   zxservo::positions positions_msg_;
   
  public:

@@ -45,7 +45,7 @@ extern "C" {
 
   int servoSetBaudrate(servo_device_p dev);
   int servoReset(servo_device_p dev);
-  int servoFirmwareVersion(servo_device_p dev);
+  int servoFirmwareVersion(servo_device_p dev, int *major, int *minor);
   int servoSetPosition(servo_device_p dev, unsigned char ch, 
 		       unsigned char ra, int pos);
   int servoReportPosition(servo_device_p dev, unsigned char ch, int *pos);

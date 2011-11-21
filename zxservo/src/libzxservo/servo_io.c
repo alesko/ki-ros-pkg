@@ -279,9 +279,10 @@ int servoDeviceConnectPort(servo_device_p dev)
       return (-1);
     }
   else
-   printf("Successfully opened %s\n", dev->ttyport); //return (-1)  
-   servoDeviceSetParams(dev);
-   return (dev->fd);
+    printf("Successfully opened %s\n", dev->ttyport); //return (-1)  
+
+  servoDeviceSetParams(dev);
+  return (dev->fd);
 }
 
 void servoDeviceClosePort(servo_device_p dev)
@@ -330,11 +331,10 @@ int servoSendReceiveCommand(int fd, unsigned char *cmd, int len, unsigned char *
 
   
   // DEBUGGING
-  printf("\nIn servoSendCommandEchoAscii\n");
-  //printf("send fd%d\n ", fd);
-  for(i=0;i< len;i++)
+  //printf("\nIn servoSendCommandEchoAscii\n");
+  /*for(i=0;i< len;i++)
     printf("%.2x ",cmd[i]);
-  printf("\n ");
+    printf("\n");*/
   //*******************
 
   
@@ -355,14 +355,14 @@ int servoSendReceiveCommand(int fd, unsigned char *cmd, int len, unsigned char *
   while (done == 0 ) {
     w = bytesWaiting(fd);
     if (w > 0) {
-      printf("w:  %d:  ",w);      
+      //printf("w:  %d:  ",w);      
       nRead = read(fd, &(lecho[pos]), len);
       pos = pos + nRead;
-      printf("nRead: %d pos: %d\n",nRead,pos);  
+      //printf("nRead: %d pos: %d\n",nRead,pos);  
     }
     if( pos == (len+ans) )  // Are we done reading ?
       done = 1;
-    usleep(100);
+    usleep(300);
     loop++;
     //printf("l %d ",loop);
     if( loop > MAX_NUM_LOOPS )
@@ -371,33 +371,39 @@ int servoSendReceiveCommand(int fd, unsigned char *cmd, int len, unsigned char *
   ok = 1;
   if( done == 1)
     {
-      printf("Done ");
+      //printf("Done ");
       for(i=0;i<len;i++){ 
 	if( lecho[i] != cmd[i])
-	  ok= 0;
-      }
-      if( ok == 1)
-	{
-	  j = 0;
-	  for( ;i<len+ans;i++){
-	    echo[i-len]=lecho[i];
-	    printf("%.2x",echo[i-len]);
+	  {
+	    ok= 0;
+	    printf("ERROR: Answer is corrupted!!\n ");
 	  }
-	  printf("\n");
-	}
-      else
+	//else
+	// printf("OK! ");
+
+      }
+      if( ok != 1)
 	{
 	  return 0;
 	}
+      else
+	{
+	  for( ;i<len+ans;i++){
+	    echo[i-len]=lecho[i];
+	    //printf("%.2x",echo[i-len]);
+	  }
+	}
       
     }
-
-
-  for(i=len;i<len+ans;i++){  
+  
+  /*
+  printf("Ans(%d): ",ans);
+  for(i=len;i<len+ans;i++){
     printf("%.2x ", echo[i]);
   }
   printf("\n");
- 
+  */
+  
   return 1;
 }
 

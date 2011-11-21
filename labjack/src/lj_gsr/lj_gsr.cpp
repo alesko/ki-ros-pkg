@@ -31,7 +31,7 @@
  *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
- *
+ * 
  *********************************************************************/
 
 //#include <vector>
@@ -47,7 +47,7 @@
 #include <boost/thread/mutex.hpp>
 
 
-#include "lj_temp.h"
+#include "lj_gsr.h"
 
 
 using namespace ros;
@@ -59,7 +59,7 @@ using namespace ros;
                                     //1-25 for 1 StreamData response per packet.
 boost::mutex g_labjack_mutex;
 
-LabjackTemp::LabjackTemp(): private_nh_("~"), publish_rate_(1), publish_duration_(1.000)  //init variabels 
+LabjackGSR::LabjackGSR(): private_nh_("~"), publish_rate_(10), publish_duration_(0.100)  //init variabels 
 {
    // 5 Hz
   resolutionIndex_ = 1;
@@ -69,6 +69,17 @@ LabjackTemp::LabjackTemp(): private_nh_("~"), publish_rate_(1), publish_duration
   SamplesPerPacket_ = 25; //25;  //Needs to be 25 to read multiple StreamData responses
                                     //in one large packet, otherwise can be any value between
                                     //1-25 for 1 StreamData response per packet.
+
+  SettlingFactor_ = 0;
+  ScanConfig_ = 0;               //ScanConfig:
+                                    // Bit 3: Internal stream clock frequency = b0: 4 MHz
+                                    // b1: 48Mz
+                                    // Bit 1: Divide Clock by 256 = b0
+  GainIndex_ = 0; // 0 =    1
+                  // 1 =   10
+                  // 2 =  100
+                  // 3 = 1000
+
   packetCounter_ = 0;
   totalPackets_ = 0;
   rate_ = (int)(1.0/(publish_rate_.expectedCycleTime() ).toSec()+0.5);
@@ -96,7 +107,6 @@ LabjackTemp::LabjackTemp(): private_nh_("~"), publish_rate_(1), publish_duration
     }
 
   // Configure LabJack's IO
-  //ConfigIO();
   if( ConfigIO() != 0 )
     ROS_WARN("LabJack is not properly configured!");
   
@@ -104,8 +114,6 @@ LabjackTemp::LabjackTemp(): private_nh_("~"), publish_rate_(1), publish_duration
   StreamStop();
 
   counter_ = 0;
-  //std::string dev;
-  //std::string searched_param;
   //double publish_freq;
 
   //ROS_INFO("Creating a PAM node");
@@ -150,15 +158,9 @@ LabjackTemp::LabjackTemp(): private_nh_("~"), publish_rate_(1), publish_duration
 
 }
 
-/*LabjackTemp::LabjackTemp(std::string dev) : private_nh_("~"), publish_rate_(100) //publish_rate_(60)
-{
-    
-  //shadow_ = shadowInitialize();
-  //strcpy(shadow_->dev.ttyport, dev.c_str());
- 
-}*/
 
-LabjackTemp::~LabjackTemp(void)  //Destructor destorys object, ~ needed
+
+LabjackGSR::~LabjackGSR(void)  //Destructor destorys object, ~ needed
 {
     
   StreamStop();
@@ -166,12 +168,12 @@ LabjackTemp::~LabjackTemp(void)  //Destructor destorys object, ~ needed
   closeUSBConnection(h_device_);
   ROS_INFO("LabJack device closed.");
   data_file_.close();
-  temp_file_.close();
+  gsr_file_.close();
 
 }
 
 
-void LabjackTemp::init()
+void LabjackGSR::init()
 {
 
   buffersize_ = 200;
@@ -187,11 +189,8 @@ void LabjackTemp::init()
   
   ROS_INFO("Labjack is now streaming data");
   int msg_que_len = 5;    
-  //do_state_ = false;
-  //last_update_ = -1.0;
-  //first_update_ = true;
   
-  ain_reading_pub_ = private_nh_.advertise<labjack::temperatures>("/labjack/temp",msg_que_len );
+  ain_reading_pub_ = private_nh_.advertise<labjack::gsr>("/labjack/gsr",msg_que_len );
 
 
   /*if (shadowDeviceConnectPort(&shadow_->dev) < 0) 
@@ -218,8 +217,7 @@ void LabjackTemp::init()
   // ***** Parameters *****
 
   ROS_INFO("Retrieving module state");
-  shadowHexStatus(shadow_);  
-  shadowPrintParams(&shadow_->par);
+
      
   //sensor_reading_pub_ = private_nh_.advertise<shadow::Sensors>("sensors_pub", 100);
 
@@ -233,13 +231,13 @@ void LabjackTemp::init()
   contoller_target_srv_ = private_nh_.advertiseService("enable_controller_target", &ShadowNode::setControllerwTarget,this);
   disable_contoller_srv_ = private_nh_.advertiseService("disable_controller", &ShadowNode::disController,this);*/
 
-  /*pulse_valves_srv_ = private_nh_.advertiseService("pulse_valves", &LabjackTemp::pulseValves,this);
-  targets_srv_ = private_nh_.advertiseService("set_targets", &LabjackTemp::setTargets,this);
-  publishing_srv_ = private_nh_.advertiseService("publishing_service", &LabjackTemp::setPublishing,this);
+  /*pulse_valves_srv_ = private_nh_.advertiseService("pulse_valves", &LabjackGSR::pulseValves,this);
+  targets_srv_ = private_nh_.advertiseService("set_targets", &LabjackGSR::setTargets,this);
+  publishing_srv_ = private_nh_.advertiseService("publishing_service", &LabjackGSR::setPublishing,this);
 
-  temperature_srv_ = private_nh_.advertiseService("temperature", &LabjackTemp::getTemperatureResistance,this);
-  currents_srv_ = private_nh_.advertiseService("cal_currents", &LabjackTemp::getCalibratedCurrents,this);
-  ain_srv_ = private_nh_.advertiseService("get_ain", &LabjackTemp::getAIN,this);*/
+  temperature_srv_ = private_nh_.advertiseService("temperature", &LabjackGSR::getTemperatureResistance,this);
+  currents_srv_ = private_nh_.advertiseService("cal_currents", &LabjackGSR::getCalibratedCurrents,this);
+  ain_srv_ = private_nh_.advertiseService("get_ain", &LabjackGSR::getAIN,this);*/
 
   publishing_ = true;
 
@@ -250,7 +248,7 @@ void LabjackTemp::init()
 
 
 //Sends a ConfigIO low-level command to turn off timers/counters
-int LabjackTemp::ConfigIO()
+int LabjackGSR::ConfigIO()
 {
     uint8 sendBuff[16], recBuff[16];
     uint16 checksumTotal;
@@ -337,7 +335,7 @@ int LabjackTemp::ConfigIO()
 }
 
 //Sends a StreamConfig low-level command to configure the stream.
-int LabjackTemp::StreamConfig()
+int LabjackGSR::StreamConfig()
 {
     int sendBuffSize;
     sendBuffSize = 14+NumChannels_*2;
@@ -354,17 +352,12 @@ int LabjackTemp::StreamConfig()
     sendBuff[7] = resolutionIndex_; //1;                //ResolutionIndex
     sendBuff[8] = SamplesPerPacket_; //SamplesPerPacket, 1-25
     sendBuff[9] = 0;                //Reserved
-    sendBuff[10] = 0;               //SettlingFactor: 0
-    sendBuff[11] = 0;               //ScanConfig:
+    sendBuff[10] = SettlingFactor_ ;               //SettlingFactor: 0
+    sendBuff[11] = ScanConfig_;               //ScanConfig:
                                     // Bit 3: Internal stream clock frequency = b0: 4 MHz
                                     // Bit 1: Divide Clock by 256 = b0
 
-    //scanInterval_ = 800;    // 40 Hz
-    //scanInterval_ = 600;    // 53 Hz
-    //scanInterval_ = 500;      // 64 Hz
-    //scanInterval_ = 400;    // 78 Hz
-    //scanInterval_ = 300;    // 75 Hz
-    scanInterval_ = 4000;   // 8  Hz
+    scanInterval_ = 4000;   
     sendBuff[12] = (uint8)(scanInterval_&(0x00FF));  //scan interval (low byte)
     sendBuff[13] = (uint8)(scanInterval_/256);       //scan interval (high byte)
 
@@ -372,9 +365,24 @@ int LabjackTemp::StreamConfig()
     {
         sendBuff[14 + i*2] = i;  //ChannelNumber (Positive) = i
 	if( differtialEnable_ == true )
-	  sendBuff[15 + i*2] =  (uint8)(0x80) ;  //ChannelOptions: Bit 7: Differential = 0 is disable, 1 is enable
+	  sendBuff[15 + i*2] =  (uint8)(0x80) ;  //ChannelOptions: Bit 7: Differential = 0 is disable, 
+	                                         //                       1 is enable
 	else
-	  sendBuff[15 + i*2] =  (uint8)(0x00) ;  //ChannelOptions: Bit 7: Differential = 0 is disable, 1 is enable	
+	  sendBuff[15 + i*2] =  (uint8)(0x00) ;
+	switch( GainIndex_ )
+	  {
+	  case 1:
+	    sendBuff[15 + i*2] = (sendBuff[15 + i*2]) | (uint8)(0x10); // Gain = 10
+	    break;
+	  case 2:
+	    sendBuff[15 + i*2] = (sendBuff[15 + i*2]) | (uint8)(0x20); // Gain = 100
+	    break;
+	  case 3:
+	    sendBuff[15 + i*2] = (sendBuff[15 + i*2]) | (uint8)(0x30); // Gain = 1000
+	    break;
+	  }
+
+
                                                  //                Bit 5-4: GainIndex = 0 (+-10V)
     }
 
@@ -444,7 +452,7 @@ int LabjackTemp::StreamConfig()
 }
 
 //Sends a StreamStart low-level command to start streaming.
-int LabjackTemp::StreamStart()
+int LabjackGSR::StreamStart()
 {
   //totalPackets_ = 0;
    
@@ -496,7 +504,7 @@ int LabjackTemp::StreamStart()
 
 //Reads the StreamData low-level function response in a loop.
 //All voltages from the stream are stored in the voltages 2D array.
-int LabjackTemp::StreamData()
+int LabjackGSR::StreamData()
 {
     int recBuffSize;
     recBuffSize = 14 + SamplesPerPacket_*2;
@@ -651,25 +659,25 @@ int LabjackTemp::StreamData()
     data_file_ << time_.toSec()  ;
     //labjack_mutex_.lock();
     
-    for(k = 0; k < NumChannels_-1; k=k+2) // Single ended
+    for(k = 0; k < NumChannels_-1; k=k+1) // Single ended
       {	   
 	ain_[k] = voltages[scanNumber - 1][k];
-	ain_[k+1] = voltages[scanNumber - 1][k+1];
-	temp_[k/2] =  volts2temperature(voltages[scanNumber - 1][k]- voltages[scanNumber - 1][k+1]);
+	//ain_[k+1] = voltages[scanNumber - 1][k+1];
+	//gsr_[k/2] =  voltages[scanNumber - 1][k]- voltages[scanNumber - 1][k+1];
 	
 	//data_file_ << "\t" << voltages[scanNumber - 1][k]; //volts2temperature(voltages[scanNumber - 1][k] ); //volt2temperature(g_ain_data[3],true)
-	data_file_ << "\t" << volts2temperature(voltages[scanNumber - 1][k]- voltages[scanNumber - 1][k+1]);
+	data_file_ << "\t" << voltages[scanNumber - 1][k]; //- voltages[scanNumber - 1][k+1];
       }
     //labjack_mutex_.unlock(); 
     data_file_ << std::endl;
     // Add avlues to vector
-    temp1_vec_.push_back(temp_[0]);
-    temp2_vec_.push_back(temp_[1]);
-    if( temp1_vec_.size() > buffersize_ )
+    gsr1_vec_.push_back(ain_[0]);
+    gsr2_vec_.push_back(ain_[1]);
+    if( gsr1_vec_.size() > buffersize_ )
       {
 	// Remove values if vector is too long
-	temp1_vec_.erase(temp1_vec_.begin());//	temp1_vec_.pop_front();
-	temp2_vec_.erase(temp2_vec_.begin());//temp2_vec_.pop_front();
+	gsr1_vec_.erase(gsr1_vec_.begin());//	temp1_vec_.pop_front();
+	gsr2_vec_.erase(gsr2_vec_.begin());//temp2_vec_.pop_front();
       }
 
 
@@ -686,7 +694,7 @@ int LabjackTemp::StreamData()
 
 
 //Sends a StreamStop low-level command to stop streaming.
-int LabjackTemp::StreamStop()
+int LabjackGSR::StreamStop()
 {
     uint8 sendBuff[2], recBuff[4];
     int sendChars, recChars;
@@ -750,7 +758,7 @@ int LabjackTemp::StreamStop()
     return 0;
 }
 
-bool LabjackTemp::init_loggfile(char* path)
+bool LabjackGSR::init_loggfile(char* path)
 {
 
   // Open data file for printing
@@ -768,62 +776,22 @@ bool LabjackTemp::init_loggfile(char* path)
           lt->tm_year + 1900, lt->tm_mon + 1, lt->tm_mday,
           lt->tm_hour, lt->tm_min, lt->tm_sec);
  
-  temp_file_.open(time_str2);
+  gsr_file_.open(time_str2);
 
 
   return true;
 }
 
 
-double LabjackTemp::volts2temperature(double volts)
-{
-  // Resistance voltage conversion table from 
-  // http://www.advindsys.com/ApNotes/YSI400SeriesProbesRvsT.htm
 
-  double resistance[35] = {4273, 4074, 3886, 3708, 3539, 3378, 3226, 
-			   3081, 2944, 2814, 2690, 2572, 2460, 2354, 
-			   2252, 2156, 2064, 1977, 1894, 1815, 1739,
-			   1667, 1599, 1533, 1471, 1412, 1355, 1301,
-			   1249, 1200, 1152, 1107, 1064, 1023, 983.8 };
-  double temp[35] = {11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,
-		     28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45};
-
-  double t;
-
-  int i=0;
-  double meas_res = volts/cali_info_.ccConstants[21]; // 200 milliamp
-  
-  if( meas_res > 4273 )
-    {
-      //ROS_WARN("Temp too low!");
-      return volts;
-    }
-  if( meas_res < 1023 )
-    {
-      //ROS_WARN("Temp too high !");
-      return volts;
-    }
-
-  while(meas_res < resistance[i])
-    i++;
- 
-  // Picse wise linear approximation:
-  t=((meas_res-resistance[i])*(temp[i+1]-temp[i])/(resistance[i+1]-resistance[i]))+temp[i];
-  //Ros_INFO("Res %f, i=%d  %f %f temp %f",meas_res,i,resistance[i],resistance[i+1], t);
-
-  return t;
-
-}
-
-
-void LabjackTemp::publish()
+void LabjackGSR::publish()
 {
 
   StreamData();
   int i;
   double sum;
 
-  temp_msg_.header.stamp = ros::Time::now();    
+  gsr_msg_.header.stamp = ros::Time::now();    
    // Put the values into a message
   //labjack_mutex_.lock();
   /*for( i=0; i < 2; i++)
@@ -833,28 +801,28 @@ void LabjackTemp::publish()
       temp_msg_.temp[i] = temp_[i];
       //labjack_mutex_.unlock();
     }*/
-  sum = accumulate(temp1_vec_.begin(), temp1_vec_.end(),0.0);
-  temp_[0] = sum / (double)temp1_vec_.size();
-  sum = accumulate(temp2_vec_.begin(), temp2_vec_.end(),0.0);
-  temp_[1] = sum / (double)temp2_vec_.size();
-  temp_msg_.temp[0] = temp_[0];
-  temp_msg_.temp[1] = temp_[1];
+  sum = accumulate(gsr1_vec_.begin(), gsr1_vec_.end(),0.0);
+  gsr_[0] = sum / (double)gsr1_vec_.size();
+  sum = accumulate(gsr2_vec_.begin(), gsr2_vec_.end(),0.0);
+  gsr_[1] = sum / (double)gsr2_vec_.size();
+  gsr_msg_.gsr[0] = gsr_[0];
+  gsr_msg_.gsr[1] = gsr_[1];
 
   // Store in file
-  temp_file_ << time_.toSec();
-  temp_file_ << "\t" << temp_[0] << "\t" << temp_[1] << std::endl;
+  gsr_file_ << time_.toSec();
+  gsr_file_ << "\t" << gsr_[0] << "\t" << gsr_[1] << std::endl;
 
 
   //labjack_mutex_.unlock();
-  ain_reading_pub_.publish(temp_msg_);
-  ROS_INFO("temp: %lf\t%lf",temp_[0],temp_[1]);
+  ain_reading_pub_.publish(gsr_msg_);
+  ROS_INFO("gsr voltage: %lf\t%lf",gsr_[0],gsr_[1]);
   //ain_reading_pub_.publush();
 }
     
 
 
 
-bool LabjackTemp::spin()
+bool LabjackGSR::spin()
 {
   //unsigned short  sensor_val[8];
   //ros::Rate r(10); // 10 ms or 100 Hz ??
@@ -904,7 +872,7 @@ bool LabjackTemp::spin()
 //Sends a Feedback low-level command that configures digital directions,
 
 /*
-int LabjackTemp::SetDO(uint8 fio, uint8 eio, uint8 cio) 
+int LabjackGSR::SetDO(uint8 fio, uint8 eio, uint8 cio) 
 {
   uint8 sendBuff[14], recBuff[10]; //
     int sendChars, recChars;
@@ -1000,7 +968,7 @@ int LabjackTemp::SetDO(uint8 fio, uint8 eio, uint8 cio)
 }
 */
 
-/*bool LabjackTemp::getAINdata(double data[14])
+/*bool LabjackGSR::getAINdata(double data[14])
 {
   int i;
   for( i=0; i < 14; i++)
@@ -1014,7 +982,7 @@ int LabjackTemp::SetDO(uint8 fio, uint8 eio, uint8 cio)
   }*/
 
  /*
-bool LabjackTemp::getTemperatureResistance(labjack::GetTemperature::Request& req, labjack::GetTemperature::Response& resp) 
+bool LabjackGSR::getTemperatureResistance(labjack::GetTemperature::Request& req, labjack::GetTemperature::Response& resp) 
 {
 
   double dblVoltage;
@@ -1040,7 +1008,7 @@ bool LabjackTemp::getTemperatureResistance(labjack::GetTemperature::Request& req
 }
  */
   /*
-bool LabjackTemp::getCalibratedCurrents(labjack::GetCurrents::Request& req, labjack::GetCurrents::Response& resp) 
+bool LabjackGSR::getCalibratedCurrents(labjack::GetCurrents::Request& req, labjack::GetCurrents::Response& resp) 
 {
 
   resp.cal_current_10uA  = cali_info_.ccConstants[20]; 
@@ -1051,7 +1019,7 @@ bool LabjackTemp::getCalibratedCurrents(labjack::GetCurrents::Request& req, labj
   */
 
    /*
-bool LabjackTemp::setPublishing(labjack::StartPublishing::Request& req, labjack::StartPublishing::Response& resp) //startpublishing is a srv
+bool LabjackGSR::setPublishing(labjack::StartPublishing::Request& req, labjack::StartPublishing::Response& resp) //startpublishing is a srv
 {
   if(req.start) //start from srv file
     {
@@ -1076,7 +1044,7 @@ bool LabjackTemp::setPublishing(labjack::StartPublishing::Request& req, labjack:
    */
 
     /*
-bool LabjackTemp::isPublishing()
+bool LabjackGSR::isPublishing()
 {
   if (publishing_)
     {
@@ -1092,7 +1060,7 @@ bool LabjackTemp::isPublishing()
      
 
 
-int LabjackTemp::tdac_example() //HANDLE hDevice, u6TdacCalibrationInfo *caliInfo)
+int LabjackGSR::tdac_example() //HANDLE hDevice, u6TdacCalibrationInfo *caliInfo)
 {
 
     int err;
