@@ -53,7 +53,7 @@
 
 namespace enc = sensor_msgs::image_encodings;
 
-static const char WINDOW[] = "Image window";
+static const char WINDOW[] = "Control window";
 
 int ghighInt;
 void switch_callback_h( int position ){
@@ -151,8 +151,8 @@ public:
     first_time_ = true;
 
     // Change according to camera
-    viewport_width_ = 320*2; // For stereo twice the width is needed
-    viewport_height_ = 240;
+    //viewport_width_ = 320*2; // For stereo twice the width is needed
+    //viewport_height_ = 240;
 
   }
 
@@ -168,10 +168,10 @@ public:
     int w = size.width;
     int h = size.height;    
 
-    cv::namedWindow( "Control window" );
-    cv::imshow( "Control window", mat);
-    cvCreateTrackbar("Streching:", "Control window", &trackpos_, maxstretch_, switch_callback_h);
-    cvCreateTrackbar("Condition", "Control window", &cond_,  maxcond_ ,switch_callback_cond);
+    cv::namedWindow( WINDOW );
+    cv::imshow(WINDOW, mat);
+    cvCreateTrackbar("Streching:", WINDOW, &trackpos_, maxstretch_, switch_callback_h);
+    cvCreateTrackbar("Condition", WINDOW, &cond_,  maxcond_ ,switch_callback_cond);
 
     switch(cond_){
     case 0:
@@ -281,6 +281,11 @@ public:
 	// Init matrix with double size
 	cv::Mat mat(cv_ptr->image);
 	cv::Mat temp(mat.rows , mat.cols*2, mat.type(), cvScalar(0));
+
+	// Change according to camera
+	viewport_width_ = mat.cols*2; // For stereo twice the width is needed
+	viewport_height_ = mat.rows;	
+
 	stereoDisplay_ = temp.clone();
 	first_time_ = false;
 	//background_ = cv_ptr->image;
@@ -326,8 +331,6 @@ public:
     while(ros::ok())
       {
 
-	//map2texture();
-
 	//glutDisplayFunc(displayGL);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_TEXTURE_2D);
@@ -359,7 +362,6 @@ public:
 	glutMainLoopEvent();
 	ros::spinOnce();
 	publish_rate_.sleep(); //sleep(100);
-	//ros::spin();
       }
   }
 
@@ -372,22 +374,10 @@ int main(int argc, char** argv)
   //glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH |GLUT_STEREO);
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH );
   
-
   glutInitWindowSize(800,600);
-  //  glutReshapeWindow(tap_counter->get_screen_width(),tap_counter->get_screen_height());
   glutInitWindowPosition(0,0); 
-
- 
   glutCreateWindow("Test OpenGL");
-  //glutFullScreen();
-  //glutReshapeFunc(HandleReshape);
-  //glutKeyboardFunc(HandleKeyboard);
-  //glutIdleFunc(HandleIdle);
 
-  //glutDisplayFunc(display);
-  //glutDisplayFunc(IsRunning);
-  //init();
-  //glutMainLoop();
   ros::Time::init();
   ros::init(argc, argv, "image_converter");
   ImageConverter ic;
