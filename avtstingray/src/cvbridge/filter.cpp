@@ -50,22 +50,25 @@
 #include <cv_bridge/cv_bridge.h>
 #include "sensor_msgs/Image.h"
 #include <string.h>
+#include <fstream> //for file saving etc
+#include <stdio.h>
+#include <string>
+#include <sys/time.h>  //For time operations
+#include <time.h>
+#include <unistd.h>
+
+#include "std_msgs/String.h"
 
 namespace enc = sensor_msgs::image_encodings;
+using namespace std;
 
-
-static const char WINDOW[] = "Control window";
+static const char C_WINDOW[] = "Control window";
+static const char F_WINDOW[] = "Filter window";
 
 int ghighInt;
 void switch_callback_h( int position ){
   ghighInt = position;
 }
-
-int gCond;
-void switch_callback_cond( int cond ){
-  gCond = cond;
-}
-
 
 
 GLvoid OnReshape(GLint w, GLint h)
@@ -79,6 +82,7 @@ class ImageConverter
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_r_sub_;
   image_transport::Subscriber image_l_sub_;
+  ros::Subscriber keyboard_sub_;
 
   cv::Mat warp_mat_; 
   cv::Mat clone_mat_;
@@ -94,10 +98,12 @@ class ImageConverter
   int trackpos_; 
   float inc_;
   int percent_;
+  int percent1_;
   float tp_;
   int cond_;
   int  maxcond_;
   float factor_;
+  int newpos_; //resets track position between judgments
 
   float left_corner_pos_;
   float right_corner_pos_;
@@ -112,6 +118,12 @@ class ImageConverter
   int viewport_width_ ;
   int viewport_height_ ;
 
+  ofstream data_file_; // data file for logging
+  cv::Mat filter_mat_;
+
+  int num_of_trails_;
+  int trial_;
+  
   // Font stuff
   // Init the text:
   /*cv::Scalar red_ ;
@@ -140,7 +152,7 @@ public:
 
     image_r_sub_ = it_.subscribe("/right/camera/image_rect_color", 1, &ImageConverter::imageCbr, this);
     image_l_sub_ = it_.subscribe("/left/camera/image_rect_color", 1, &ImageConverter::imageCbl, this);
-
+    keyboard_sub_ = nh_.subscribe("/key", 1, &ImageConverter::keyboard, this); 
 
     maxstretch_= 400;
     maxcond_ = 3;
@@ -149,23 +161,63 @@ public:
     left_corner_pos_ = 0.00; //left position on picture
     right_corner_pos_ = 0.00;//right position on picture    
 
-    cond_ = 1;  
+    //cond_ = 3;  
     factor_ = 0;
 
     top_left_ = -0.00;
     top_right_ = 0;
 
-    pp_size_ = 80; // percentage size of participant compared to mannequin x2
+    pp_size_ = 100; // percentage size of participant compared to mannequin x2
 
     first_time_ = true;
 
+    //this gives file name to saved file basing it on time and date
+    time_t t = time(0);
+    struct tm* lt = localtime(&t);
+    char time_str[256];
+    sprintf(time_str, "myloggfile_%04d%02d%02d_%02d%02d%02d.log",
+	    lt->tm_year + 1900, lt->tm_mon + 1, lt->tm_mday,
+	    lt->tm_hour, lt->tm_min, lt->tm_sec);
+    //creates a file
+    data_file_.open(time_str);
+    trial_ = 0;
+    num_of_trails_ = 6;
+    newpos_ = maxstretch_;
   }
 
   ~ImageConverter()
   {
-    cv::destroyWindow(WINDOW);
+    cv::destroyWindow(C_WINDOW);
+    cv::destroyWindow(F_WINDOW);
   }
+  
+  //IplImage* GetThresholdedImage(IplImage* img)
+  void GetThresholdedImage(cv::Mat mat)
+  {
+    cv::namedWindow( F_WINDOW );
+    // Convert the image into an HSV image - function to be used to get a filtered images below
+    //IplImage* imgHSV = cvCreateImage(cvGetSize(img), 8, 3);
+    //cvCvtColor(img, imgHSV, CV_BGR2HSV);
 
+    filter_mat_ = mat.clone();
+    cv::Mat imgHSV =  mat.clone();
+    cv::cvtColor(imgHSV,imgHSV, CV_BGR2HSV); 
+
+    //IplImage* imgThreshed = cvCreateImage(cvGetSize(img), 8, 1);
+
+    //    cvInRangeS(imgHSV, cvScalar(30, 100, 100), cvScalar(50, 255, 255), imgThreshed);//play with these numbers and different colours in the right environment
+    cv::Scalar lowerb(30, 100, 100);
+    cv::Scalar upperb(50, 255, 255);
+    inRange(imgHSV,lowerb, upperb, filter_mat_);
+    
+    cv::imshow(F_WINDOW, filter_mat_);
+      //cvReleaseImage(&imgHSV);
+
+      //return imgThreshed;
+
+
+  }
+  
   int control_window(cv::Mat mat)
   {
     
@@ -173,12 +225,13 @@ public:
     int w = size.width;
     int h = size.height;    
 
-    cv::namedWindow( WINDOW );
+    cv::namedWindow( C_WINDOW );
     
-    cvCreateTrackbar("Streching:", WINDOW, &trackpos_, maxstretch_, switch_callback_h);
-    cvCreateTrackbar("Condition", WINDOW, &cond_,  maxcond_ ,switch_callback_cond);
+    
+    cvCreateTrackbar("Streching:", C_WINDOW, &trackpos_, maxstretch_, switch_callback_h);
+    //    cvCreateTrackbar("Condition", WINDOW, &cond_,  maxcond_ ,switch_callback_cond);
 
-    switch(cond_){
+    /*switch(cond_){
     case 0:
       tp_ = (80/(100/(float)pp_size_));
       trackpos_ = (long)tp_ *2;
@@ -192,7 +245,7 @@ public:
       tp_ = (120/(100/(float)pp_size_));
       trackpos_ = (long)tp_ *2;
       cvSetTrackbarPos("Streching:", "Control window", trackpos_ );
-    }
+      }
 
     factor_ = (float)trackpos_/400;
     top_left_ = 0 - factor_;
@@ -201,6 +254,12 @@ public:
     right_corner_pos_ = top_right_ - 0.5;
 
     percent_ = (100/(float)pp_size_)* ((float)trackpos_/2);
+*/
+      inc_ = (((float)pp_size_*2)/maxstretch_)/2;
+    left_corner_pos_ = 0.5 - ((inc_/100) *trackpos_);
+    right_corner_pos_ = 0.5 + ((inc_/100)* trackpos_);
+    percent_ = trackpos_/2;
+    percent1_ = (long) percent_;//percent change as an int to be displayed on the original image
 
     // Set up transformation matices 
     frameTri_[0].x = 0;
@@ -217,7 +276,7 @@ public:
     warpTri_[2].x = w*left_corner_pos_;//bottom;left
     warpTri_[2].y = h;
     
-    cv::imshow(WINDOW, mat);
+    cv::imshow(C_WINDOW, mat);
 
     return 1;
   }
@@ -269,6 +328,11 @@ public:
     return 1;    
   }
 
+  void keyboard(const std_msgs::String::ConstPtr& msg)
+  {
+    ROS_INFO("I heard: [%s]", msg->data.c_str());
+  }
+
   void imageCbr(const sensor_msgs::ImageConstPtr& msg)
   {
     cv_bridge::CvImagePtr cv_ptr;
@@ -298,7 +362,8 @@ public:
 	//background_ = cv_ptr->image;
       }
 
-    control_window(cv_ptr->image); 
+    control_window(cv_ptr->image);
+    GetThresholdedImage(cv_ptr->image);
     stretchMat(cv_ptr->image, false);
     map2texture();
 
@@ -337,6 +402,25 @@ public:
   {
     while(ros::ok())
       {
+
+	char c = cvWaitKey(20);
+	//13 = carriage return - press to select judgement and move onto next trial
+	if (c == 13) 
+	  {
+	    c = 0;
+	    data_file_ << trial_ << "\t" << percent_ << "\n";
+	    ROS_INFO("That was trial no: %d", trial_);
+	    if (newpos_ == 0)
+	      newpos_ = maxstretch_;
+	    else
+	      newpos_ = 0;
+	    trial_++;
+	    if(trial_ <= num_of_trails_)
+	      {
+		
+		ros::shutdown(); // A gentle shutdown when trials are done
+	      }
+	  }
 
 	//glutDisplayFunc(displayGL);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -388,7 +472,6 @@ int main(int argc, char** argv)
   ros::Time::init();
   ros::init(argc, argv, "image_converter");
   ImageConverter ic;
-  //ros::spin();
   ic.spin();  // Loop
   return 0;
 }

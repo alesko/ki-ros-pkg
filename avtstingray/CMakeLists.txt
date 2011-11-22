@@ -38,3 +38,9 @@ target_link_libraries(invisiblehand  ${OpenCV_LIBS}  X11 m GL GLU glut)
 
 rosbuild_add_executable(stretch src/cvbridge/stretch.cpp )
 target_link_libraries(stretch  ${OpenCV_LIBS}  X11 m GL GLU glut)
+
+rosbuild_add_executable(filter src/cvbridge/filter.cpp )
+target_link_libraries(filter  ${OpenCV_LIBS}  X11 m GL GLU glut)
+
+rosbuild_add_executable(keyboard_node src/cvbridge/keyboard.cpp )
+target_link_libraries(keyboard)
