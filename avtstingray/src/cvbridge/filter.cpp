@@ -330,7 +330,30 @@ public:
 
   void keyboard(const std_msgs::String::ConstPtr& msg)
   {
-    ROS_INFO("I heard: [%s]", msg->data.c_str());
+    
+    //resp[trial] = percent;
+    //c = 0;
+    if (newpos_ == 0) 
+      {
+	newpos_ = maxstretch_ ;//alternates starting trackbar position (0% or 200%) 
+      } 
+    else 
+      {
+	newpos_ = 0;
+      } 
+    
+    cvSetTrackbarPos("Streching:",  C_WINDOW , newpos_);//resets starting track bar position
+    //    cvCreateTrackbar("Streching:", C_WINDOW, &trackpos_, maxstretch_, switch_callback_h);
+    trackpos_ = newpos_;
+    data_file_ << percent_ << "\n";
+    //if( counter 
+    // {
+	//	data_file_.close();
+
+    trial_++;
+    ROS_INFO("That was trial no: %d", trial_);
+	//}
+    
   }
 
   void imageCbr(const sensor_msgs::ImageConstPtr& msg)
@@ -402,24 +425,28 @@ public:
   {
     while(ros::ok())
       {
-
+	/*
 	char c = cvWaitKey(20);
 	//13 = carriage return - press to select judgement and move onto next trial
 	if (c == 13) 
 	  {
 	    c = 0;
 	    data_file_ << trial_ << "\t" << percent_ << "\n";
-	    ROS_INFO("That was trial no: %d", trial_);
+	    
 	    if (newpos_ == 0)
 	      newpos_ = maxstretch_;
 	    else
 	      newpos_ = 0;
 	    trial_++;
-	    if(trial_ <= num_of_trails_)
-	      {
-		
-		ros::shutdown(); // A gentle shutdown when trials are done
-	      }
+	    
+	      
+	  }
+	*/
+	if(trial_ >= num_of_trails_)
+	  {
+	    data_file_.close();  
+	    //ROS_INFO("WHAT");
+	    ros::shutdown(); // A gentle shutdown when trials are done
 	  }
 
 	//glutDisplayFunc(displayGL);

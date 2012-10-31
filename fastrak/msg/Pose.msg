@@ -1,0 +1,13 @@
+#
+# Message for the state of the fastrak. 
+#
+Header  header         # header
+uint8   id             # station number
+float64 x              #  
+float64 y              # 
+float64 z              # 
+float64 ya             # yaw
+float64 pi             # pitch
+float64 ro             # roll
+
+

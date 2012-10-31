@@ -1,0 +1,41 @@
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svnroot/bosch-ros-pkg/!svn/ver/97/tags/bosch_drivers-0.1.0/amtec/src/libamtec
+END
+amtec_conversion.c
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svnroot/bosch-ros-pkg/!svn/ver/97/tags/bosch_drivers-0.1.0/amtec/src/libamtec/amtec_conversion.c
+END
+amtec_io.c
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/svnroot/bosch-ros-pkg/!svn/ver/97/tags/bosch_drivers-0.1.0/amtec/src/libamtec/amtec_io.c
+END
+amtec_base.c
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/svnroot/bosch-ros-pkg/!svn/ver/97/tags/bosch_drivers-0.1.0/amtec/src/libamtec/amtec_base.c
+END
+amtec_settings.c
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/svnroot/bosch-ros-pkg/!svn/ver/97/tags/bosch_drivers-0.1.0/amtec/src/libamtec/amtec_settings.c
+END
+amtec_commands.c
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/svnroot/bosch-ros-pkg/!svn/ver/97/tags/bosch_drivers-0.1.0/amtec/src/libamtec/amtec_commands.c
+END
+CMakeLists.txt
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/svnroot/bosch-ros-pkg/!svn/ver/97/tags/bosch_drivers-0.1.0/amtec/src/libamtec/CMakeLists.txt
+END

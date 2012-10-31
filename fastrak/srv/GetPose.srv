@@ -1,0 +1,7 @@
+---
+float64 x             # x position
+float64 y             # y position
+float64 z             # z position
+float64 yaw           # yaw   (Euler angles)
+float64 pitch         # pitch (Euler angles)
+float64 roll          # roll  (Euler angles)

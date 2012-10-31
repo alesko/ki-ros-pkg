@@ -1,0 +1,30 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/PiTracker.h
+sys/types.h
+-
+termios.h
+-
+
+/home/asd/MyRosPack/fastrak/src/libfastrak/PiTracker.cpp
+termios.h
+-
+pthread.h
+-
+PiTracker.h
+/home/asd/MyRosPack/fastrak/src/libfastrak/PiTracker.h
+unistd.h
+-
+fcntl.h
+-
+sys/time.h
+-
+stdio.h
+-
+

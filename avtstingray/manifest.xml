@@ -14,7 +14,9 @@
   <depend package="roscpp"/>
   <depend package="std_msgs"/>
   <depend package="image_transport"/>
-  <export> <cpp lflags="-lGL -lglut" /> </export>
+  <export> 
+    <cpp cflags="-pg" cxxflags="-pg" lflags="-lGL -lglut -pg" ldflags="-pg" /> 
+  </export>
 
 </package>
 

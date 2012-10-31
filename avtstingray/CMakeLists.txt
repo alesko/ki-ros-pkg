@@ -10,7 +10,8 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 #set(ROS_BUILD_TYPE RelWithDebInfo)
 
 rosbuild_init()
-
+#rosbuild_include(cuda cuda)
+#CUDA_ADD_LIBRARY(kernel src/kernel.cu)
 find_package(OpenCV REQUIRED)
 
 #set the default path for built executables to the "bin" directory
@@ -39,8 +40,17 @@ target_link_libraries(invisiblehand  ${OpenCV_LIBS}  X11 m GL GLU glut)
 rosbuild_add_executable(stretch src/cvbridge/stretch.cpp )
 target_link_libraries(stretch  ${OpenCV_LIBS}  X11 m GL GLU glut)
 
+rosbuild_add_executable(stretch_mod src/cvbridge/stretch_mod.cpp )
+target_link_libraries(stretch_mod  ${OpenCV_LIBS}  X11 m)
+
+rosbuild_add_executable(stretchGPU src/cvbridge/stretchGPU.cpp )
+target_link_libraries(stretchGPU ${OpenCV_LIBS}  X11 m)
+
+rosbuild_add_executable(stretchGL src/cvbridge/stretchGL.cpp )
+target_link_libraries(stretchGL  ${OpenCV_LIBS}  X11 m GL GLU glut)
+
 rosbuild_add_executable(filter src/cvbridge/filter.cpp )
 target_link_libraries(filter  ${OpenCV_LIBS}  X11 m GL GLU glut)
 
 rosbuild_add_executable(keyboard_node src/cvbridge/keyboard.cpp )
-target_link_libraries(keyboard)
+target_link_libraries(keyboard_node)

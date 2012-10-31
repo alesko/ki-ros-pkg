@@ -1,0 +1,8 @@
+---
+float64 x             # x position
+float64 y             # y position
+float64 z             # z velocity
+	 	      # Euler angles
+float64 yaw           # yaw
+float64 pitch         # pitch
+float64 roll          # roll

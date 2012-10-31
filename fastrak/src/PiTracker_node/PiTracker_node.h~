@@ -1,0 +1,120 @@
+#ifndef PiTracker_Node_H_
+#define PiTracker_Node_H_
+
+#include <ros/ros.h>
+#include <boost/thread/mutex.hpp>
+
+//Messages
+#include <fastrak/Pose.h>
+
+enum{TRKR_LIB_HS,TRKR_LIB,TRKR_PAT,TRKR_FT,NUM_SUPP_TRKS};
+
+// structure definitions
+
+typedef struct _CNX_PARAMS {
+  int cnxType;
+  int tracker;
+  //gchar port[50];
+  char port[50];
+}*LPCNX_PARAMS,CNX_PARAMS;
+
+typedef struct _CNX_STRUCT {
+  int cnxType;
+  int trackerType;
+  PiTracker* pTrak;
+  //GtkWidget* portChooser;
+  //GtkLabel* cnxLabel;
+}*LPCNX_STRUCT,CNX_STRUCT;
+
+typedef struct _CAP_STRUCT{
+  //GtkWidget* win;
+  //GtkWidget* label;
+  //GtkWidget* browse;
+  FILE* fCap;
+  //gchar* filename;
+  char* filename;
+}*LPCAP_STRUCT,CAP_STRUCT;
+
+typedef struct _USB_PARAMS {
+  int vid;
+  int pid;
+  int writeEp;
+  int readEp;
+}*LPUSB_PARAMS,USB_PARAMS;
+
+typedef struct _READ_WRITE_STRUCT {
+  PingPong* pPong;
+  int& keepLooping;
+  pthread_t* pthread;
+  void* pParam;
+}*LPREAD_WRITE_STRUCT,READ_WRITE_STRUCT;
+
+//using namespace ros;
+
+class PiTrackerNode{
+
+ private:
+  ros::NodeHandle private_nh;
+
+  fastrak::Pose pose_msg;
+  bool keepLooping;
+
+
+ public:
+  bool publishing;
+  ros::NodeHandle node_;
+  ros::Rate publish_rate;
+
+  PiTrackerNode();
+  ~PiTrackerNode();
+  int PublishData(void);
+  ros::Publisher fastrak_pub;
+  //void publish();
+  bool isPublishing();
+  void setPublishing(bool value);
+  void setKeepLooping(bool value);
+  bool spin();
+  bool Write2Buffer(void* pParam);
+  bool ReadTracker(void* pParam);
+
+};
+//void* ReadTrackerThread(void* pParam);
+void* Write2Display(void* pParam);
+
+
+void OnConnect(LPCNX_STRUCT pcs, char* port, LPREAD_WRITE_STRUCT prs, LPREAD_WRITE_STRUCT p);
+int parse_string(char* buf, int num_values, double* values, int ignore_first);
+
+
+
+// usb vid/pids for Polehemus trackers
+//USB_PARAMS usbTrkParams[NUM_SUPP_TRKS]={
+//  {0x0f44,0xff20,0x04,0x88},  // Lib HS
+//  {0x0f44,0xff12,0x02,0x82},   // Lib
+//  {0x0f44,0xef12,0x02,0x82},  // Patriot
+//  {0x0f44,0x0002,0x02,0x82}};  // Fastrak
+
+// polhemus tracker names
+//const gchar* trackerNames[NUM_SUPP_TRKS]={
+//  "High Speed Liberty","Liberty","Patriot","Fastrak"};
+
+// definitions for the GTK+ callbacks and other worker functions
+/*
+void OnAbout(GtkWidget*,GtkWindow*);
+void OnClear(GtkWidget*,GtkTextView*);
+void OnCapture(GtkToggleButton*,LPCAP_STRUCT);
+void OnCaptureBrowse(GtkWidget*,LPCAP_STRUCT);
+int OpenCaptureFile(LPCAP_STRUCT);
+void OnCnxType(GtkToggleButton*,LPCNX_STRUCT);
+void OnConnect(GtkWidget*,LPCNX_STRUCT);
+void OnDisconnect(GtkWidget*,LPCNX_STRUCT);
+int QueryUser4TrackerType(int&);
+void TrackerSelect(GtkToggleButton*,int*);
+gboolean CommandEntered(GtkEntry*,GdkEventKey*,LPCNX_STRUCT);
+int Browse4CaptureFile(LPCAP_STRUCT);
+void* ReadTrackerThread(void*);
+gboolean Write2Display(gpointer);
+*/
+
+
+#endif

@@ -1,0 +1,2 @@
+rosbuild_add_executable(amtec_fastrak amtec_fastrak.cpp)
+target_link_libraries(amtec_fastrak amtec)

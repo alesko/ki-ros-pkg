@@ -1,0 +1,2 @@
+rosbuild_add_executable(PiTracker_node PiTracker_node.cpp)
+target_link_libraries(PiTracker_node fastrak)

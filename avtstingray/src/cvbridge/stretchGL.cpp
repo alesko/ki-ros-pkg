@@ -79,6 +79,7 @@ class ImageConverter
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_r_sub_;
   image_transport::Subscriber image_l_sub_;
+  image_transport::Publisher image_pub_;
 
   cv::Mat warp_mat_; 
   cv::Mat clone_mat_;
@@ -113,6 +114,7 @@ class ImageConverter
   int viewport_height_ ;
 
   GLuint texture_;
+  
   // Font stuff
   // Init the text:
   /*cv::Scalar red_ ;
@@ -142,6 +144,7 @@ public:
     image_r_sub_ = it_.subscribe("/right/camera/image_rect_color", 1, &ImageConverter::imageCbr, this);
     image_l_sub_ = it_.subscribe("/left/camera/image_rect_color", 1, &ImageConverter::imageCbl, this);
 
+    image_pub_ = it_.advertise("/right/manipulated_image",1);
 
     maxstretch_= 400;
     maxcond_ = 3;
@@ -167,6 +170,15 @@ public:
   ~ImageConverter()
   {
     cv::destroyWindow(WINDOW);
+  }
+
+  void publish(void)
+  {
+    //const sensor_msgs::Image& pubImg;
+    //const sensor_msgs::Image& pubImg=;
+
+    
+    
   }
 
   int control_window(cv::Mat mat)
@@ -221,14 +233,17 @@ public:
     warpTri_[2].y = h;
     
     cv::imshow(WINDOW, mat);
+    
 
     return 1;
   }
 
 
+  //  cv_bridge::CvImagePtr stretchMat(cv::Mat mat, bool left, cv_bridge::CvImagePtr cv_ptr_in)
   void stretchMat(cv::Mat mat, bool left)
   {
 
+    //cv_bridge::CvImagePtr cv_ptr;
     cv::Size size = mat.size();
     cv::Mat stretched_mat = mat.clone();
 
@@ -255,8 +270,13 @@ public:
     cv::Mat roi_mat = stereoDisplay_.colRange(col_range);
     cv::addWeighted(stretched_mat, 1.0, roi_mat, 0.0 ,0.0,roi_mat);
 
+    //cv_ptr = cv_ptr_in;
+
     roi_mat.release();
     stretched_mat.release();
+    
+
+    //return cv_ptr;
     
   }
   
@@ -267,6 +287,7 @@ public:
     clone_mat_ = stereoDisplay_.clone();
     //cv::cvtColor(clone_mat_,clone_mat_, CV_BGR2RGB);    
     cv_input_ = &IplImage(clone_mat_);
+    
     //gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGB, cv_input_->width, cv_input_->height, GL_RGB, GL_UNSIGNED_BYTE, cv_input_->imageData);
 
     //glGenTextures(1, &texture_);
@@ -281,6 +302,7 @@ public:
   void imageCbr(const sensor_msgs::ImageConstPtr& msg)
   {
     cv_bridge::CvImagePtr cv_ptr;
+    //cv_bridge::CvImagePtr cv_ptr_manip;
 
     try
     {
@@ -308,8 +330,10 @@ public:
       }
 
     control_window(cv_ptr->image); 
+    //cv_ptr_manip = stretchMat(cv_ptr->image, true,cv_ptr);
     stretchMat(cv_ptr->image, true);
     map2texture();
+    //image_pub_.publish(cv_ptr->toImageMsg());
 
     cv::waitKey(2);
     
@@ -319,6 +343,7 @@ public:
   void imageCbl(const sensor_msgs::ImageConstPtr& msg)
   {
     cv_bridge::CvImagePtr cv_ptr;
+    //cv_bridge::CvImagePtr cv_ptr_manip;
 
     try
     {
@@ -334,6 +359,7 @@ public:
       {
 	return;
       }
+    //cv_ptr_manip = stretchMat(cv_ptr->image, false, cv_ptr);
     stretchMat(cv_ptr->image, false);
 
     cv::waitKey(2);

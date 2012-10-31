@@ -1,0 +1,2 @@
+rosbuild_add_executable(fastrak_node fastrak_node.cpp)
+target_link_libraries(fastrak_node fastrak)

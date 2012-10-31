@@ -1,0 +1,4 @@
+add_subdirectory(libfastrak)
+add_subdirectory(test_tracker)
+add_subdirectory(fastrak_node)
+add_subdirectory(PiTracker_node)

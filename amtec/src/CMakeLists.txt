@@ -1,0 +1,6 @@
+add_subdirectory(libamtec)
+add_subdirectory(amtec_node)
+add_subdirectory(sweep_amtec)
+add_subdirectory(test_amtec)
+add_subdirectory(schunk_node)
+add_subdirectory(amtec_fastrak)

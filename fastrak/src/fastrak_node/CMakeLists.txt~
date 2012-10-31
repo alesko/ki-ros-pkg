@@ -1,0 +1,2 @@
+rosbuild_add_executable(test_tracker tracker_test.cpp)
+target_link_libraries(test_tracker fastrak)

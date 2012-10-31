@@ -9,12 +9,8 @@
 
 #include <sstream>
 
-
-int main(int argc, char **argv)
+ main(int argc, char **argv)
 {
-
-  //int kfd = 0;
-  //struct termios cooked, raw;
 
   ros::init(argc, argv, "keyboard");
   ros::NodeHandle n;
@@ -28,16 +24,18 @@ int main(int argc, char **argv)
 
     std::string mymsg;
 
-    std::cin >> mymsg;
-    if(1)
-      {      	
+    char c = getchar(); //cvWaitKey(1);
+    if(c > -1)    
+      {
+
 	std::stringstream ss;
 	
-	ss << mymsg;// << count;
+	//ss << mymsg;
+	ss << c;
 	msg.data = ss.str();
 	
 	keyboard_pub.publish(msg);
-      }
+	}
     
     ros::spinOnce();
     loop_rate.sleep();
